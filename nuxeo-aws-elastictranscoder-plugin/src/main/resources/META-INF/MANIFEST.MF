@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-SymbolicName: nuxeo-aws-elastictranscoder
+Bundle-Version: 7.1.qualifier
+Bundle-Name: nuxeo-aws-elastictranscode
+Bundle-ClassPath: .
+Bundle-ActivationPolicy: lazy
+Bundle-ManifestVersion: 2
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-Vendor: Nuxeo
+Nuxeo-Component: 
+

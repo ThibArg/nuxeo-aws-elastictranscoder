@@ -1,0 +1,27 @@
+<package type="addon" name="nuxeo-aws-elastictranscoder" version="@VERSION@">
+  <title>Nuxeo Tagging Operations</title>
+  <description>
+    <p>This addon activates the Nuxeo EJ Gallo.</p>
+    <p>This addon adds new features</p>
+  </description>
+  <home-page></home-page>
+  <vendor>Nuxeo</vendor>
+  <installer restart="true" />
+  <uninstaller restart="true" />
+  <hotreload-support>false</hotreload-support>
+  <require-terms-and-conditions-acceptance>false</require-terms-and-conditions-acceptance>
+  <nuxeo-validation>waiting_nuxeo_certified</nuxeo-validation>
+  <production-state>development</production-state>
+  <supported>false</supported>
+  <platforms>
+    <platform>cap-@VERSION@</platform>
+    <platform>cap-6.0</platform>
+  </platforms>
+<!-- 
+  <dependencies>
+    <package>nuxeo-adullact-service:@VERSION@</package>
+  </dependencies>
+ -->
+  <license>LGPL</license>
+  <license-url>http://www.gnu.org/licenses/lgpl.html</license-url>
+</package>
