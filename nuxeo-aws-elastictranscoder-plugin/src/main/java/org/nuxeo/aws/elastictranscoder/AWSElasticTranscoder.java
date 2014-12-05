@@ -19,6 +19,8 @@ package org.nuxeo.aws.elastictranscoder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.logging.Log;
@@ -28,14 +30,23 @@ import org.nuxeo.ecm.core.api.ClientException;
 import org.nuxeo.ecm.platform.picture.api.BlobHelper;
 import org.nuxeo.runtime.api.Framework;
 
+import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoder;
+import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
+import com.amazonaws.services.elastictranscoder.model.CreateJobOutput;
+import com.amazonaws.services.elastictranscoder.model.CreateJobRequest;
+import com.amazonaws.services.elastictranscoder.model.CreateJobResult;
+import com.amazonaws.services.elastictranscoder.model.Job;
+import com.amazonaws.services.elastictranscoder.model.JobInput;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.PutObjectResult;
 
 /**
  * First draft uses polling to read job's status, this is good enough for first
@@ -46,9 +57,11 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
  * methodology cannot scale as the number of transcode jobs increases. To solve
  * this problem, Elastic Transcoder can publish notifications to Amazon SNS
  * which provides an event-driven mechanism for tracking job status. </quote>
- * 
+ * <p>
+ * Also, we don't dispatch videos in sub folders (for example
+ * /userX/videos/filea, fieleb, ...
  *
- * @since TODO
+ * @since 7.1
  */
 public class AWSElasticTranscoder {
 
@@ -68,25 +81,29 @@ public class AWSElasticTranscoder {
     protected boolean isRunning = true;
 
     protected Blob blob;
-    
+
     protected File fileOfBlob;
 
-    protected String preset;
+    protected String eTag;
+
+    protected String presetId;
 
     protected String inputS3Bucket;
 
     protected String outputS3Bucket;
 
-    protected String pipeline;
+    protected String pipelineId;
 
     protected String awsJobId;
 
     protected AmazonS3 amazonS3;
 
+    protected AmazonElasticTranscoder amazonElasticTranscoder;
+
     protected AWSCredentialsProvider awsCredentialsProvider;
 
-    public AWSElasticTranscoder(Blob inBlob, String inPreset,
-            String inInputBucket, String inOutputBucket, String inPipeline) {
+    public AWSElasticTranscoder(Blob inBlob, String inPresetId,
+            String inInputBucket, String inOutputBucket, String inPipelineId) {
 
         loadAccessKeysFromConf();
         if (awsKeysCheckedStatus != 1) {
@@ -96,34 +113,35 @@ public class AWSElasticTranscoder {
 
         blob = inBlob;
         fileOfBlob = BlobHelper.getFileFromBlob(blob);
-        if(fileOfBlob == null) {
+        if (fileOfBlob == null) {
             // TODO
             // . . . create a temp file instead of giving up . . .
             throw new RuntimeException("Cannot get a File from this blob");
         }
-        
-        preset = inPreset;
+
+        presetId = inPresetId;
         inputS3Bucket = inInputBucket;
         outputS3Bucket = inOutputBucket;
-        pipeline = inPipeline;
-        
-        // THIBAUD => PAS SUR QUE CA MARCHE
-        awsCredentialsProvider = new ProfileCredentialsProvider( awsAccessKeyId, awsSecretAccessKey);
+        pipelineId = inPipelineId;
+
+        // Create the main AWS objects (S3 and Elastic Transcoder)
+        awsCredentialsProvider = new SimpleAWSCredentialProvider(
+                awsAccessKeyId, awsSecretAccessKey);
         amazonS3 = new AmazonS3Client(awsCredentialsProvider);
+        amazonElasticTranscoder = new AmazonElasticTranscoderClient(
+                awsCredentialsProvider);
+
     }
 
     public void transcode() {
 
         isRunning = true;
-        
-        sendFile();
 
         // Send the file to the s3 inputS3Bucket
-        // . . .
+        sendFileToInputBucket();
 
-        // Start the job
-        // awsJobId = . . .
-
+        // Create the job
+        createElasticTranscoderJob();
         // Wait completion
         // . . .
 
@@ -141,32 +159,76 @@ public class AWSElasticTranscoder {
         return null;
     }
 
-    protected void sendFile() {
-        
+    /*
+     * Here we are "ready" (fun to say that with such an empty method) to setup
+     * the key (the file name + full path prefix) in the S3 bucket, so we could
+     * put it in a folder/subfolder/etc.
+     * 
+     * Assume we have a valid blob in entry, default implementation: Just the
+     * filename
+     */
+    protected String getKeyName() {
+
+        return fileOfBlob.getName();
+    }
+
+    protected void sendFileToInputBucket() {
+
         try {
-            
-            System.out.println("Uploading a new object to S3 from a file\n");
-            amazonS3.putObject(new PutObjectRequest(
-                    inputS3Bucket, "toto", fileOfBlob));
-            
+
+            // System.out.println("Uploading a new object to S3 from a file\n");
+            PutObjectResult result = amazonS3.putObject(new PutObjectRequest(
+                    inputS3Bucket, getKeyName(), fileOfBlob));
+            eTag = result.getETag();
+
         } catch (AmazonServiceException ase) {
-            System.out.println("Caught an AmazonServiceException, which " +
-                    "means your request made it " +
-                    "to Amazon S3, but was rejected with an error response" +
-                    " for some reason.");
-            System.out.println("Error Message:    " + ase.getMessage());
-            System.out.println("HTTP Status Code: " + ase.getStatusCode());
-            System.out.println("AWS Error Code:   " + ase.getErrorCode());
-            System.out.println("Error Type:       " + ase.getErrorType());
-            System.out.println("Request ID:       " + ase.getRequestId());
+            String message = "Caught an AmazonServiceException, which "
+                    + "means your request made it "
+                    + "to Amazon S3, but was rejected with an error response"
+                    + " for some reason.";
+            message += "\nError Message:    " + ase.getMessage();
+            message += "\nHTTP Status Code: " + ase.getStatusCode();
+            message += "\nAWS Error Code:   " + ase.getErrorCode();
+            message += "\nError Type:       " + ase.getErrorType();
+            message += "\nRequest ID:       " + ase.getRequestId();
+
+            throw new RuntimeException(message);
+
         } catch (AmazonClientException ace) {
-            System.out.println("Caught an AmazonClientException, which " +
-                    "means the client encountered " +
-                    "an internal error while trying to " +
-                    "communicate with S3, " +
-                    "such as not being able to access the network.");
-            System.out.println("Error Message: " + ace.getMessage());
+            String message = "Caught an AmazonClientException, which "
+                    + "means the client encountered "
+                    + "an internal error while trying to "
+                    + "communicate with S3, "
+                    + "such as not being able to access the network.";
+            message += "\nError Message: " + ace.getMessage();
+            throw new RuntimeException(message);
         }
+
+    }
+
+    protected void createElasticTranscoderJob() {
+        // (using code from the AWS code sample in
+        // JobStatusNotificationsSample.java)
+
+        // Setup the job input
+        JobInput jobInput = new JobInput().withKey(getKeyName());
+
+        // Setup the job output using the provided input key to generate an
+        // output key.
+        List<CreateJobOutput> outputs = new ArrayList<CreateJobOutput>();
+        CreateJobOutput output = new CreateJobOutput().withKey(getKeyName());
+        output.withPresetId(presetId);
+        outputs.add(output);
+
+        // Create a job on the specified pipeline and get the job ID
+        CreateJobRequest createJobRequest = new CreateJobRequest();
+        createJobRequest.withPipelineId(pipelineId);
+        createJobRequest.withInput(jobInput);
+        createJobRequest.withOutputs(outputs);
+
+        CreateJobResult cjr = amazonElasticTranscoder.createJob(createJobRequest);
+        Job job = cjr.getJob();
+        awsJobId = job.getId();
 
     }
 

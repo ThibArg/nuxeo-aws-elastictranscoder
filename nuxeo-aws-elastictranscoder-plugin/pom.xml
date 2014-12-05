@@ -90,6 +90,11 @@
 			<artifactId>jackson-databind</artifactId>
 			<!-- <version>${jackson-2-version}</version> -->
 		</dependency>
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.2</version>
+		</dependency>
 		<!-- End of ASW SDK POM recommendation -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
