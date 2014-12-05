@@ -22,3 +22,6 @@ target
 *.gpd.*
 *cpJar*
 dependency-tree.log
+
+# Specific ignores
+aws-test.conf
