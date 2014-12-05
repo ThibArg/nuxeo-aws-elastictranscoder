@@ -3,6 +3,7 @@ nuxeo-aws-elastictranscoder
 
 _Work in progress_
 
+Note/Reminder: To test with your key/secret AWS key, put then in src/test/resources/aws-test.conf
 
 ### About Nuxeo
 
