@@ -21,7 +21,8 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 
 /**
- * 
+ * We want to allow using nuxeo.conf to setup the keys, so we need our basic
+ * custom credential provider.
  *
  * @since 7.1
  */

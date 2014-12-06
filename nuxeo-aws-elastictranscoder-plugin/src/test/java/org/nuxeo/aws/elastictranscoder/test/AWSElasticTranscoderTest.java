@@ -40,7 +40,7 @@ public class AWSElasticTranscoderTest {
     protected static final String TEST_CONF = "aws-test.conf";
 
     // These buckets are created with the AWS nuxeo presales credentials
-    // The keys are set in the nuxeo server configuraiton file.
+    // The keys are set in the nuxeo server configuration file.
     protected static String INTPUTBUCKET = "nuxeo-transcoding-input";
 
     protected static String OUTPUTBUCKET = "nuxeo-transcoding-output";
@@ -48,6 +48,8 @@ public class AWSElasticTranscoderTest {
     protected static String PIPELINE_NAME = "nuxeo-transcoding-pipeline";
 
     protected static String PIPELINE_ID = "1417822775841-udlnwk";
+
+    protected static String SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue";
 
     // Presets available in US Region East:
     // https://console.aws.amazon.com/elastictranscoder/home?region=us-east-1#presets:
@@ -90,15 +92,18 @@ public class AWSElasticTranscoderTest {
         FileBlob fb = new FileBlob(f);
 
         AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
-                PRESET_iPHONE_5, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID);
+                "1351620000001-200010"/*PRESET_WEB*//*PRESET_iPHONE_5*/, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
+                SQS_QUEUE_URL);
 
         transcoder.transcode();
 
         // wait until it's done
         // do {...} while(!transcoder.done())
 
-        File result = transcoder.getTranscodedFile();
+        FileBlob result = transcoder.getTranscodedBlob();
         assertNotNull(result);
+        File tmp = new File("/Users/thibaud/Desktop/coucou");
+        result.transferTo(tmp);
 
         // Check it is a valid iPhone5 video
         // . . .
