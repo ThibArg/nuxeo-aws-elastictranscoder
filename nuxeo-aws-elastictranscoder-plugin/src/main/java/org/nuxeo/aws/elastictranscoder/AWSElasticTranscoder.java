@@ -66,6 +66,17 @@ import com.google.common.io.Files;
  * <code>setDeleteOutputFileOnCleanup(false)</code> <i>before</i> calling
  * <code>transcode()</code></li>
  * </ul>
+ * <p>
+ * <b>Setting up the AWS dependencies</b>
+ * <p>
+ * The class expects the following to be already set on AWS:
+ * <ul>
+ * <li>A valid S3 input bucket</li>
+ * <li>A valid S3 output bucket (can be the same as the input)</li>
+ * <li>An existing SNS topic for the notification</li>
+ * <li>An existing SQS which has subscribed to the SNS topic</li>
+ * <li>A pipeline already created, referencing the bucket(s) and the the notification</li>
+ * </ul>
  * 
  * <p>
  * Important information:
