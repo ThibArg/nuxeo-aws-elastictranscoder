@@ -8,22 +8,19 @@ import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.Properties;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoder;
+import org.nuxeo.aws.elastictranscoder.GenericAWSClient;
 import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
-import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.test.runner.Deploy;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
@@ -73,10 +70,10 @@ public class AWSElasticTranscoderTest {
         fileInput.close();
 
         Properties systemProps = System.getProperties();
-        systemProps.setProperty(AWSElasticTranscoder.CONF_AWS_KEY_ACCESS,
-                props.getProperty(AWSElasticTranscoder.CONF_AWS_KEY_ACCESS));
-        systemProps.setProperty(AWSElasticTranscoder.CONF_AWS_KEY_SECRET,
-                props.getProperty(AWSElasticTranscoder.CONF_AWS_KEY_SECRET));
+        systemProps.setProperty(GenericAWSClient.CONF_AWS_KEY_ACCESS,
+                props.getProperty(GenericAWSClient.CONF_AWS_KEY_ACCESS));
+        systemProps.setProperty(GenericAWSClient.CONF_AWS_KEY_SECRET,
+                props.getProperty(GenericAWSClient.CONF_AWS_KEY_SECRET));
 
     }
 
@@ -92,20 +89,17 @@ public class AWSElasticTranscoderTest {
         FileBlob fb = new FileBlob(f);
 
         AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
-                "1351620000001-200010"/*PRESET_WEB*//*PRESET_iPHONE_5*/, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
+                PRESET_WEB/*PRESET_iPHONE_5*/, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
                 SQS_QUEUE_URL);
 
         transcoder.transcode();
-
-        // wait until it's done
-        // do {...} while(!transcoder.done())
 
         FileBlob result = transcoder.getTranscodedBlob();
         assertNotNull(result);
         File tmp = new File("/Users/thibaud/Desktop/coucou");
         result.transferTo(tmp);
 
-        // Check it is a valid iPhone5 video
+        // Check it is a valid
         // . . .
     }
 

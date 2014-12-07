@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -31,109 +30,77 @@ import org.nuxeo.aws.elastictranscoder.notification.JobStatusNotification.JobSta
 import org.nuxeo.aws.elastictranscoder.notification.JobStatusNotificationHandler;
 import org.nuxeo.aws.elastictranscoder.notification.SqsQueueNotificationWorker;
 import org.nuxeo.ecm.core.api.Blob;
-import org.nuxeo.ecm.core.api.ClientException;
 import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
 import org.nuxeo.ecm.platform.picture.api.BlobHelper;
 import org.nuxeo.runtime.api.Framework;
 
-import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoder;
-import com.amazonaws.services.elastictranscoder.AmazonElasticTranscoderClient;
 import com.amazonaws.services.elastictranscoder.model.CreateJobOutput;
 import com.amazonaws.services.elastictranscoder.model.CreateJobRequest;
 import com.amazonaws.services.elastictranscoder.model.CreateJobResult;
 import com.amazonaws.services.elastictranscoder.model.Job;
 import com.amazonaws.services.elastictranscoder.model.JobInput;
-import com.amazonaws.services.elastictranscoder.model.ReadJobRequest;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.ReceiveMessageRequest;
 import com.google.common.io.Files;
 
 /**
- * First draft uses polling to read job's status, this is good enough for first
- * POC, but be warned that AWS doc explicitly states that:
+ * First draft, 2014-12
  * <p>
- * <quote> If you poll the Elastic Transcoder's ReadJob API to track job status,
- * you need to continuously call ReadJob on every submitted job. This
- * methodology cannot scale as the number of transcode jobs increases. To solve
- * this problem, Elastic Transcoder can publish notifications to Amazon SNS
- * which provides an event-driven mechanism for tracking job status. </quote>
+ * This class handles the following:
+ * <ul>
+ * <li>Connect to AWS</li>
+ * <li>Uploads the file to the input S3 bucket</li>
+ * <li>Use Elastic Transcoder to transcode the file</li>
+ * <li>Waits until the transcoding is done<br>
+ * Important: This is done using Amazon SNS and SQS, which must be configured
+ * and used with the transcoder pipeline</li>
+ * <li>Download the file</li>
+ * <li>Cleanup and delete the files created in S3<br>
+ * <b>IMPORTANT</b>: This is the default behavior: the class deletes the files
+ * created in the S3 buckets (input bucket and output bucket) after the
+ * transcoding. If you want to keep them on S3, call
+ * <code>setDeleteInputFileOnCleanup(false)</code> and/or
+ * <code>setDeleteOutputFileOnCleanup(false)</code> <i>before</i> calling
+ * <code>transcode()</code></li>
+ * </ul>
+ * 
  * <p>
- * Also, we don't dispatch videos in sub folders (for example
- * /userX/videos/file1, fiele2, ...
- *
- *<p>
- * <b>IMPORTANT</b>
- * By default, files created on S3 are deleted after the transcoding. If you want
- * to keep them on S3, call setDeleteAfterTranscoding(false) <i>before</i>
- * calling <code>transcode()</code>
- * @since 7.1
- */
-/**
- * TODO Explain
- * <p>
- * Credentials in nuxeo.conf or in the AWS env. variables (nuxeo.conf first)
- * <p>
- * The code expect SNS and SQS to be configured, so we can get the AWS Elastic
- * Transcoder notifications
- * <p>
- * The code is inspired from the JobStatusNotificationsSample.java example from
- * AWS SDK, which states (2014-12):
- * <p>
- * <i> Note that this implementation will not scale to multiple machines because
+ * Important information:
+ * <ul>
+ * <li>Key ID and secret key used for the connection are either in nuxeo.conf or
+ * set as environment variables (see GenericAWSClient)</li>
+ * <li>We don't dispatch videos in sub folders (for example /userX/videos/
+ * file1, ... fileN)</li>
+ * <li>The name of the file in the output bucket must be unique: "If the
+ * [output] bucket already contains a file that has the specified name, the
+ * output fails"<br/>
+ * The class adds a UUID prefix to the file names.</li>
+ * <li>The code expect SNS and SQS to be configured, so we can get the AWS
+ * Elastic Transcoder notifications</li>
+ * <li></li>
+ * <li>The code is inspired from the JobStatusNotificationsSample.java example
+ * from AWS SDK, which states (2014-12):<br>
+ * <i>Note that this implementation will not scale to multiple machines because
  * the provided JobStatusNotificationHandler is looking for a specific job ID.
  * If there are multiple machines polling SQS for notifications, there is no
  * guarantee that a particular machine will receive a particular notification.
- * </i>
- * <p>
- * => You know it "will not scale to multiple machines"
- * <p>
- * "If the [output] bucket already contains a file that has the specified name, the output fails"
- * => We add a UID as prefix in this first implementation
+ * </i></li>
+ * </ul>
  * 
+ * @since 7.1
  */
 public class AWSElasticTranscoder {
 
     private static final Log log = LogFactory.getLog(AWSElasticTranscoder.class);
-
-    // The keys in nuxeo.conf
-    public static final String CONF_AWS_KEY_ACCESS = "aws.transcoder.key";
-
-    public static final String CONF_AWS_KEY_SECRET = "aws.transcoder.secret";
-
-    // These are the names of system variable keys, if used instead of
-    // nuxeo.conf
-    public static final String AWS_ENV_VAR_ACCESS_KEY = "AWS_ACCESS_KEY_ID";
-
-    public static final String AWS_ENV_VAR_SECRET_KEY = "AWS_SECRET_ACCESS_KEY";
-
-    protected static String awsAccessKeyId;
-
-    protected static String awsSecretAccessKey;
-
-    protected static int awsKeysCheckedStatus = -1;
-
-    protected boolean isRunning = true;
 
     protected Blob blob;
 
     protected File fileOfBlob;
 
     protected FileBlob transcodedBlob;
-
-    protected String eTag;
 
     protected String presetId;
 
@@ -145,7 +112,9 @@ public class AWSElasticTranscoder {
 
     protected String sqsQueueURL;
 
-    protected boolean deleteAfterTranscoding = true;
+    protected boolean deleteInputFileOnCleanup = true;
+
+    protected boolean deleteOutputFileOnCleanup = true;
 
     protected String awsJobId;
 
@@ -157,14 +126,13 @@ public class AWSElasticTranscoder {
 
     protected String outputKey;
 
-    protected AmazonS3 amazonS3;
+    protected GenericAWSClient genericAwsClient;
 
-    protected AmazonElasticTranscoder amazonElasticTranscoder;
-
-    protected AmazonSQS amazonSQS;
-
-    protected AWSCredentialsProvider awsCredentialsProvider;
-
+    /*
+     * Handling the progression so at cleanup timen we know what can be cleaned
+     * up (avoid trying to delete a file on S3 if we know we never could not
+     * send it)
+     */
     protected enum STEP {
         INIT(0), INPUT_FILE_SENT(2), TRANSCODING_DONE(2), OUTPUT_FILE_DOWNLOADED(
                 3);
@@ -186,35 +154,39 @@ public class AWSElasticTranscoder {
         protected boolean canDeleteOutputFileOnS3() {
             return step >= TRANSCODING_DONE.toInt();
         }
+
+        protected boolean isRunning() {
+            return step > INIT.toInt() && step < OUTPUT_FILE_DOWNLOADED.toInt();
+        }
     }
 
     protected STEP step;
 
     /**
-     * Constructor is strict an throws an error if a parameter looks invalid
+     * Constructor is strict and throws an error if a parameter looks invalid
      * 
      * @param inBlob
      * @param inPresetId
      * @param inInputBucket
      * @param inOutputBucket
      * @param inPipelineId
+     * @throws IOException
      */
     public AWSElasticTranscoder(Blob inBlob, String inPresetId,
             String inInputBucket, String inOutputBucket, String inPipelineId,
-            String inSQSQueueURL) {
+            String inSQSQueueURL) throws IOException {
 
-        loadAccessKeysFromConf();
-        if (awsKeysCheckedStatus != 1) {
-            throw new ClientException(
-                    "AWS Access Key ID/Secret Access Key are missing or invalid. Are they correctly set-up in nuxeo.conf or as System variables?");
-        }
+        genericAwsClient = GenericAWSClient.getInstance();
 
         blob = inBlob;
         fileOfBlob = BlobHelper.getFileFromBlob(blob);
         if (fileOfBlob == null) {
-            // TODO
-            // . . . create a temp file instead of giving up . . .
-            throw new RuntimeException("Cannot get a File from this blob");
+            // Create a temp file
+            fileOfBlob = File.createTempFile("NxAWSET-",
+                    Files.getFileExtension(blob.getFilename()));
+            blob.transferTo(fileOfBlob);
+            fileOfBlob.deleteOnExit();
+            Framework.trackFile(fileOfBlob, this);
         }
 
         if (StringUtils.isBlank(inPresetId)) {
@@ -247,19 +219,9 @@ public class AWSElasticTranscoder {
         transcodedBlob = null;
         step = STEP.INIT;
 
-        // Create the main AWS objects (S3, Elastic Transcoder, ...)
-        awsCredentialsProvider = new SimpleAWSCredentialProvider(
-                awsAccessKeyId, awsSecretAccessKey);
-        amazonS3 = new AmazonS3Client(awsCredentialsProvider);
-        amazonElasticTranscoder = new AmazonElasticTranscoderClient(
-                awsCredentialsProvider);
-        amazonSQS = new AmazonSQSClient(awsCredentialsProvider);
-
     }
 
     public void transcode() throws RuntimeException {
-
-        isRunning = true;
 
         try {
             // Send the file to the s3 inputS3Bucket
@@ -268,7 +230,7 @@ public class AWSElasticTranscoder {
 
             // Setup our notification worker.
             SqsQueueNotificationWorker sqsQueueNotificationWorker = new SqsQueueNotificationWorker(
-                    amazonSQS, sqsQueueURL);
+                    genericAwsClient.getSQSClient(), sqsQueueURL);
             Thread notificationThread = new Thread(sqsQueueNotificationWorker);
             notificationThread.start();
 
@@ -296,13 +258,11 @@ public class AWSElasticTranscoder {
             cleanup();
         }
 
-        isRunning = false;
-
     }
 
     public boolean done() {
 
-        return !isRunning;
+        return !step.isRunning();
     }
 
     public FileBlob getTranscodedBlob() {
@@ -312,8 +272,12 @@ public class AWSElasticTranscoder {
 
     protected void cleanup() {
 
-        if (deleteAfterTranscoding) {
-            removeFilesFromS3IgnoreError();
+        if (deleteInputFileOnCleanup) {
+            deleteInputFileOnS3IfNeeded(true);
+        }
+
+        if (deleteOutputFileOnCleanup) {
+            deleteOutputFileOnS3IfNeeded(true);
         }
 
         step = STEP.INIT;
@@ -350,71 +314,60 @@ public class AWSElasticTranscoder {
         outputKey = key;
     }
 
-    protected void sendFileToInputBucket() {
+    protected String getOutputFileName() {
+        String fileName = outputKey.replace(uniqueFilePrefix, "");
 
-        try {
+        return fileName;
+    }
 
-            // System.out.println("Uploading a new object to S3 from a file\n");
-            PutObjectResult result = amazonS3.putObject(new PutObjectRequest(
-                    inputS3Bucket, inputKey, fileOfBlob));
-            eTag = result.getETag();
+    protected void sendFileToInputBucket() throws RuntimeException {
 
-        } catch (AmazonServiceException ase) {
-            String message = "Caught an AmazonServiceException, which "
-                    + "means your request made it "
-                    + "to Amazon S3, but was rejected with an error response"
-                    + " for some reason.";
-            message += "\nError Message:    " + ase.getMessage();
-            message += "\nHTTP Status Code: " + ase.getStatusCode();
-            message += "\nAWS Error Code:   " + ase.getErrorCode();
-            message += "\nError Type:       " + ase.getErrorType();
-            message += "\nRequest ID:       " + ase.getRequestId();
-
-            throw new RuntimeException(message);
-
-        } catch (AmazonClientException ace) {
-            String message = "Caught an AmazonClientException, which "
-                    + "means the client encountered "
-                    + "an internal error while trying to "
-                    + "communicate with S3, "
-                    + "such as not being able to access the network.";
-            message += "\nError Message: " + ace.getMessage();
-            throw new RuntimeException(message);
-        }
+        AWSS3Handler s3 = new AWSS3Handler(inputS3Bucket);
+        s3.sendFile(inputKey, fileOfBlob);
 
     }
 
-    protected void getFileFromOutputBucket() throws IOException {
+    protected void getFileFromOutputBucket() throws IOException,
+            RuntimeException {
 
-        File tmp = File.createTempFile("NxAWSET-", "");
-        tmp.deleteOnExit();
-        Framework.trackFile(tmp, this);
-        GetObjectRequest gor = new GetObjectRequest(outputS3Bucket, outputKey);
-        ObjectMetadata metadata = amazonS3.getObject(gor, tmp);
-
-        transcodedBlob = new FileBlob(tmp);
-        transcodedBlob.setMimeType(metadata.getContentType());
-        System.out.println("ZE FILE: ");
-        System.out.println(metadata.getContentType());
+        AWSS3Handler s3 = new AWSS3Handler(outputS3Bucket);
+        transcodedBlob = s3.downloadFile(outputKey, getOutputFileName());
     }
 
-    protected void removeFilesFromS3IgnoreError() {
+    protected void deleteInputFileOnS3IfNeeded(boolean inIgnoreError) {
 
         if (step.canDeleteInputFileOnS3()) {
             try {
-                amazonS3.deleteObject(inputS3Bucket, inputKey);
+                AWSS3Handler s3 = new AWSS3Handler(inputS3Bucket);
+                s3.deleteFile(inputKey);
             } catch (Exception e) {
-                log.error("Error when deleting file in the S3 input bucket", e);
+                if (inIgnoreError) {
+                    log.error("Error when deleting file " + inputKey
+                            + " in the S3 input bucket", e);
+                } else {
+                    throw new RuntimeException(e);
+                }
             }
         }
 
+    }
+
+    protected void deleteOutputFileOnS3IfNeeded(boolean inIgnoreError) {
+
         if (step.canDeleteOutputFileOnS3()) {
             try {
-                amazonS3.deleteObject(outputS3Bucket, outputKey);
+                AWSS3Handler s3 = new AWSS3Handler(outputS3Bucket);
+                s3.deleteFile(outputKey);
             } catch (Exception e) {
-                log.error("Error when deleting file in the S3 output bucket", e);
+                if (inIgnoreError) {
+                    log.error("Error when deleting file " + outputKey
+                            + " in the S3 output bucket", e);
+                } else {
+                    throw new RuntimeException(e);
+                }
             }
         }
+
     }
 
     protected void createElasticTranscoderJob() {
@@ -437,9 +390,9 @@ public class AWSElasticTranscoder {
         createJobRequest.withInput(jobInput);
         createJobRequest.withOutputs(outputs);
 
-        CreateJobResult cjr = amazonElasticTranscoder.createJob(createJobRequest);
-        Job job = cjr.getJob();
-        awsJobId = job.getId();
+        CreateJobResult cjr = genericAwsClient.getElasticTranscoder().createJob(
+                createJobRequest);
+        awsJobId = cjr.getJob().getId();
 
     }
 
@@ -461,9 +414,12 @@ public class AWSElasticTranscoder {
             public void handle(JobStatusNotification jobStatusNotification) {
                 if (jobStatusNotification.getJobId().equals(awsJobId)) {
 
-                    System.out.println("========== <jobStatusNotification>");
-                    System.out.println(jobStatusNotification);
-                    System.out.println("========== </jobStatusNotification>");
+                    /*
+                     * System.out.println("========== <jobStatusNotification>");
+                     * System.out.println(jobStatusNotification);
+                     * System.out.println
+                     * ("========== </jobStatusNotification>");
+                     */
 
                     if (jobStatusNotification.getState().isTerminalState()) {
                         jobEndState = jobStatusNotification.getState();
@@ -489,46 +445,20 @@ public class AWSElasticTranscoder {
 
     }
 
-    protected synchronized void loadAccessKeysFromConf() {
-
-        if (awsKeysCheckedStatus == -1) {
-            awsAccessKeyId = Framework.getProperty(CONF_AWS_KEY_ACCESS);
-            awsSecretAccessKey = Framework.getProperty(CONF_AWS_KEY_SECRET);
-
-            // Fallback if the keys are not here
-            if (StringUtils.isBlank(awsAccessKeyId)) {
-                awsAccessKeyId = System.getenv(AWS_ENV_VAR_ACCESS_KEY);
-            }
-            if (StringUtils.isBlank(awsSecretAccessKey)) {
-                awsSecretAccessKey = System.getenv(AWS_ENV_VAR_SECRET_KEY);
-            }
-
-            if (StringUtils.isBlank(awsAccessKeyId)
-                    || StringUtils.isBlank(awsSecretAccessKey)) {
-                awsKeysCheckedStatus = 0;
-            } else {
-                awsKeysCheckedStatus = 1;
-            }
-        }
+    public boolean getDeleteInputFileOnCleanup() {
+        return deleteInputFileOnCleanup;
     }
 
-    protected boolean checkNoBlank(String... inValues) {
-
-        for (String val : inValues) {
-            if (StringUtils.isBlank(val)) {
-                return false;
-            }
-        }
-
-        return true;
+    public void setDeleteInputFileOnCleanup(boolean inValue) {
+        deleteInputFileOnCleanup = inValue;
     }
 
-    public boolean detDeleteAfterTranscoding() {
-        return deleteAfterTranscoding;
+    public boolean getDeleteOutputFileOnCleanup() {
+        return deleteOutputFileOnCleanup;
     }
 
-    public void setDeleteAfterTranscoding(boolean inValue) {
-        deleteAfterTranscoding = inValue;
+    public void setDeleteOutputFileOnCleanup(boolean inValue) {
+        deleteOutputFileOnCleanup = inValue;
     }
 
 }
