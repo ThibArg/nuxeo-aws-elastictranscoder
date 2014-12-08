@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.aws.elastictranscoder.videoandconverter.contrib">
+
+	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
+		point="videoConversions">
+
+		<videoConversion
+			name="AWS Elastic Transcoder: Web (Facebook, SmugMug, Vimeo, YouTube)"
+			converter="awsET_presetWeb" />
+		<videoConversion
+			name="AWS Elastic Transcoder: iPhone5, iPhone 4S, iPad 4G and 3G, iPad mini, Samsung Galaxy S2/S3/Tab 2"
+			converter="awsET_presetIPhone5" />
+
+	</extension>
+
+	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
+		point="automaticVideoConversions">
+
+		<!-- None for first test -->
+		<automaticVideoConversion
+			name="AWS Elastic Transcoder: Web (Facebook, SmugMug, Vimeo, YouTube)"
+			enabled="false" order="0" />
+		<automaticVideoConversion
+			name="AWS Elastic Transcoder: iPhone5, iPhone 4S, iPad 4G and 3G, iPad mini, Samsung Galaxy S2/S3/Tab 2"
+			enabled="false" order="0" />
+
+	</extension>
+
+	<extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
+		point="converter">
+		<converter name="awsET_presetWeb"
+			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+			<sourceMimeType>video/*</sourceMimeType>
+			<destinationMimeType>video/mp4</destinationMimeType>
+			<parameters>
+				<parameter name="presetId">1351620000001-100070</parameter>
+				<parameter name="outputFileSuffix">-web.mp4</parameter>
+			</parameters>
+		</converter>
+	</extension>
+
+</component>

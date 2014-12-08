@@ -105,7 +105,11 @@ public class GenericAWSClient {
     public AmazonS3 getS3Client() {
 
         if (s3 == null) {
-            s3 = new AmazonS3Client(awsCredentialsProvider);
+            synchronized (instance) {
+                if (s3 == null) {
+                    s3 = new AmazonS3Client(awsCredentialsProvider);
+                }
+            }
         }
         return s3;
     }
@@ -113,7 +117,11 @@ public class GenericAWSClient {
     public AmazonSQS getSQSClient() {
 
         if (sqs == null) {
-            sqs = new AmazonSQSClient(awsCredentialsProvider);
+            synchronized (instance) {
+                if (sqs == null) {
+                    sqs = new AmazonSQSClient(awsCredentialsProvider);
+                }
+            }
         }
         return sqs;
     }
@@ -121,8 +129,12 @@ public class GenericAWSClient {
     public AmazonElasticTranscoder getElasticTranscoder() {
 
         if (elasticTranscoder == null) {
-            elasticTranscoder = new AmazonElasticTranscoderClient(
-                    awsCredentialsProvider);
+            synchronized (instance) {
+                if (elasticTranscoder == null) {
+                    elasticTranscoder = new AmazonElasticTranscoderClient(
+                            awsCredentialsProvider);
+                }
+            }
         }
 
         return elasticTranscoder;

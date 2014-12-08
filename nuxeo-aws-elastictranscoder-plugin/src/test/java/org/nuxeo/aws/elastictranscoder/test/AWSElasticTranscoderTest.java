@@ -27,6 +27,9 @@ import org.nuxeo.runtime.test.runner.FeaturesRunner;
 
 import com.google.inject.Inject;
 
+/*
+ * The container type for the output file. Valid values include fmp4, mp3, mp4, ogg, ts, and webm. The following restrictions apply:
+ */
 @RunWith(FeaturesRunner.class)
 @Features(PlatformFeature.class)
 @Deploy({ "nuxeo-aws-elastictranscoder" })
@@ -38,6 +41,7 @@ public class AWSElasticTranscoderTest {
 
     // These buckets are created with the AWS nuxeo presales credentials
     // The keys are set in the nuxeo server configuration file.
+    
     protected static String INTPUTBUCKET = "nuxeo-transcoding-input";
 
     protected static String OUTPUTBUCKET = "nuxeo-transcoding-output";
@@ -49,7 +53,7 @@ public class AWSElasticTranscoderTest {
     protected static String SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue";
 
     // Presets available in US Region East:
-    // https://console.aws.amazon.com/elastictranscoder/home?region=us-east-1#presets:
+    // http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html
     // Web: Facebook, SmugMug, Vimeo, YouTube
     protected static final String PRESET_WEB = "1351620000001-100070";
 
@@ -89,7 +93,7 @@ public class AWSElasticTranscoderTest {
         FileBlob fb = new FileBlob(f);
 
         AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
-                PRESET_WEB/*PRESET_iPHONE_5*/, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
+                /*PRESET_WEB*/PRESET_iPHONE_5, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
                 SQS_QUEUE_URL);
 
         transcoder.transcode();
