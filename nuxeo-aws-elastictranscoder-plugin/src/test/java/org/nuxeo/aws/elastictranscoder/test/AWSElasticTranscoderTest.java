@@ -18,7 +18,6 @@ import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoder;
 import org.nuxeo.aws.elastictranscoder.GenericAWSClient;
 import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.CoreSession;
-import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
 import org.nuxeo.runtime.test.runner.Deploy;

@@ -37,13 +37,7 @@ import org.nuxeo.runtime.api.Framework;
 import com.amazonaws.services.elastictranscoder.model.CreateJobOutput;
 import com.amazonaws.services.elastictranscoder.model.CreateJobRequest;
 import com.amazonaws.services.elastictranscoder.model.CreateJobResult;
-import com.amazonaws.services.elastictranscoder.model.Job;
 import com.amazonaws.services.elastictranscoder.model.JobInput;
-import com.amazonaws.AmazonClientException;
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.google.common.io.Files;
 
 /**
@@ -187,7 +181,7 @@ public class AWSElasticTranscoder {
             String inInputBucket, String inOutputBucket, String inPipelineId,
             String inSQSQueueURL) throws IOException {
 
-        genericAwsClient = GenericAWSClient.getInstance();
+        genericAwsClient = new GenericAWSClient();
 
         blob = inBlob;
         fileOfBlob = BlobHelper.getFileFromBlob(blob);

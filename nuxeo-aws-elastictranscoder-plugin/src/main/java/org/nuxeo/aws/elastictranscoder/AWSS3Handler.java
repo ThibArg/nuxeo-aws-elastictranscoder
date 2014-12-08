@@ -46,7 +46,7 @@ public class AWSS3Handler {
     public AWSS3Handler(String inBucket) {
         bucket = inBucket;
 
-        genericAwsClient = GenericAWSClient.getInstance();
+        genericAwsClient = new GenericAWSClient();
     }
 
     public void sendFile(String inKey, File inFile) throws RuntimeException {

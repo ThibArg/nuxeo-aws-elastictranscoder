@@ -45,11 +45,14 @@ import com.amazonaws.services.sqs.AmazonSQSClient;
  * freely do something like:
  * <p>
  * <code>
- * GenericAWSClient awsC = GenericAWSClient.getInstance();
+ * GenericAWSClient awsC = new GenericAWSClient.getInstance();
+ * // . . .
  * awsC.getS3Client().putObject(. . .);
+ * // . . .
  * awsC.getS3Client().getObject(. . .);
- *  . . .
+ * // . . .
  * </code>
+ * <p>
  *
  * @since 7.1
  */
@@ -59,8 +62,6 @@ public class GenericAWSClient {
     public static final String CONF_AWS_KEY_ACCESS = "aws.transcoder.key";
 
     public static final String CONF_AWS_KEY_SECRET = "aws.transcoder.secret";
-
-    private static GenericAWSClient instance = null;
 
     // Names of env. variable names as expected by AWS, if used instead of
     // nuxeo.conf
@@ -74,17 +75,21 @@ public class GenericAWSClient {
 
     private static int awsKeysCheckedStatus = -1;
 
-    private static AWSCredentialsProvider awsCredentialsProvider;
+    private static AWSCredentialsProvider awsCredentialsProvider = null;
 
-    private static AmazonS3 s3;
+    protected AmazonS3 s3;
 
-    private static AmazonElasticTranscoder elasticTranscoder;
+    protected AmazonElasticTranscoder elasticTranscoder;
 
-    private static AmazonSQS sqs;
+    protected AmazonSQS sqs;
 
-    private GenericAWSClient() {
+    private static String buildCredentiaProviderLock = "Lock";
 
-        if (!loadAccessKeysFromConf()) {
+    public GenericAWSClient() {
+
+        buildCredentiaProvider();
+
+        if (awsCredentialsProvider == null) {
             throw new ClientException(
                     "AWS Access Key ID/Secret Access Key are missing or invalid. Are they correctly set-up in nuxeo.conf or as System variables?");
 
@@ -93,23 +98,10 @@ public class GenericAWSClient {
         buildCredentiaProvider();
     }
 
-    public synchronized static GenericAWSClient getInstance() {
-
-        if (instance == null) {
-            instance = new GenericAWSClient();
-        }
-
-        return instance;
-    }
-
     public AmazonS3 getS3Client() {
 
         if (s3 == null) {
-            synchronized (instance) {
-                if (s3 == null) {
-                    s3 = new AmazonS3Client(awsCredentialsProvider);
-                }
-            }
+            s3 = new AmazonS3Client(awsCredentialsProvider);
         }
         return s3;
     }
@@ -117,11 +109,7 @@ public class GenericAWSClient {
     public AmazonSQS getSQSClient() {
 
         if (sqs == null) {
-            synchronized (instance) {
-                if (sqs == null) {
-                    sqs = new AmazonSQSClient(awsCredentialsProvider);
-                }
-            }
+            sqs = new AmazonSQSClient(awsCredentialsProvider);
         }
         return sqs;
     }
@@ -129,47 +117,48 @@ public class GenericAWSClient {
     public AmazonElasticTranscoder getElasticTranscoder() {
 
         if (elasticTranscoder == null) {
-            synchronized (instance) {
-                if (elasticTranscoder == null) {
-                    elasticTranscoder = new AmazonElasticTranscoderClient(
-                            awsCredentialsProvider);
-                }
-            }
+            elasticTranscoder = new AmazonElasticTranscoderClient(
+                    awsCredentialsProvider);
         }
 
         return elasticTranscoder;
     }
 
-    protected synchronized void buildCredentiaProvider() {
-        if (awsCredentialsProvider == null) {
-            awsCredentialsProvider = new SimpleAWSCredentialProvider(
-                    awsAccessKeyId, awsSecretAccessKey);
-        }
-    }
-
-    protected synchronized boolean loadAccessKeysFromConf() {
+    protected void buildCredentiaProvider() {
 
         if (awsKeysCheckedStatus == -1) {
-            awsAccessKeyId = Framework.getProperty(CONF_AWS_KEY_ACCESS);
-            awsSecretAccessKey = Framework.getProperty(CONF_AWS_KEY_SECRET);
+            synchronized (buildCredentiaProviderLock) {
+                // Another thread may have filled the variables while we were
+                // acquiring the lock => check again.
+                if (awsKeysCheckedStatus == -1) {
+                    awsAccessKeyId = Framework.getProperty(CONF_AWS_KEY_ACCESS);
+                    awsSecretAccessKey = Framework.getProperty(CONF_AWS_KEY_SECRET);
 
-            // Fallback if the keys are not here
-            if (StringUtils.isBlank(awsAccessKeyId)) {
-                awsAccessKeyId = System.getenv(AWS_ENV_VAR_ACCESS_KEY);
-            }
-            if (StringUtils.isBlank(awsSecretAccessKey)) {
-                awsSecretAccessKey = System.getenv(AWS_ENV_VAR_SECRET_KEY);
-            }
+                    // Fallback if the keys are not there
+                    if (StringUtils.isBlank(awsAccessKeyId)) {
+                        awsAccessKeyId = System.getenv(AWS_ENV_VAR_ACCESS_KEY);
+                    }
+                    if (StringUtils.isBlank(awsSecretAccessKey)) {
+                        awsSecretAccessKey = System.getenv(AWS_ENV_VAR_SECRET_KEY);
+                    }
 
-            if (StringUtils.isBlank(awsAccessKeyId)
-                    || StringUtils.isBlank(awsSecretAccessKey)) {
-                awsKeysCheckedStatus = 0;
-            } else {
-                awsKeysCheckedStatus = 1;
+                    if (StringUtils.isBlank(awsAccessKeyId)
+                            || StringUtils.isBlank(awsSecretAccessKey)) {
+                        awsKeysCheckedStatus = 0;
+                    } else {
+                        awsKeysCheckedStatus = 1;
+                    }
+
+                    if (awsKeysCheckedStatus == 1) {
+                        awsCredentialsProvider = new SimpleAWSCredentialProvider(
+                                awsAccessKeyId, awsSecretAccessKey);
+                    } else {
+                        awsCredentialsProvider = null;
+                    }
+                }
             }
         }
 
-        return awsKeysCheckedStatus == 1;
     }
 
     /**
