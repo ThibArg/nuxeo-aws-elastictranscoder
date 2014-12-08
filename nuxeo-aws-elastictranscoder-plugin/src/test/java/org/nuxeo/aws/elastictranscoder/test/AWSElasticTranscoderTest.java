@@ -99,8 +99,9 @@ public class AWSElasticTranscoderTest {
 
         FileBlob result = transcoder.getTranscodedBlob();
         assertNotNull(result);
-        File tmp = new File("/Users/thibaud/Desktop/coucou");
-        result.transferTo(tmp);
+        //File tmp = new File("/Users/thibaud/Desktop/coucou");
+        //result.transferTo(tmp);
+        System.out.println(result.getFilename() + " - " + result.getMimeType());
 
         // Check it is a valid
         // . . .
