@@ -19,7 +19,6 @@ package org.nuxeo.aws.elastictranscoder.connverters;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,6 @@ import org.nuxeo.ecm.core.convert.api.ConversionException;
 import org.nuxeo.ecm.core.convert.cache.SimpleCachableBlobHolder;
 import org.nuxeo.ecm.core.convert.extension.Converter;
 import org.nuxeo.ecm.core.convert.extension.ConverterDescriptor;
-import org.nuxeo.ecm.webengine.jaxrs.servlet.mapping.Path;
 
 /**
  * The converter is contributed via an XML extension (see
@@ -85,10 +83,6 @@ public class AWSElasticTranscoderConverter implements Converter {
             Map<String, Serializable> parameters) throws ConversionException {
 
         List<Blob> results = new ArrayList<Blob>();
-        
-        String test = (String) parameters.get("presetId");
-        String test2 = (String) parameters.get("outputFileSuffix");
-        String test3 = (String) parameters.get("jkjkjk");
 
         Blob theBlob = blobHolder.getBlob();
         try {
