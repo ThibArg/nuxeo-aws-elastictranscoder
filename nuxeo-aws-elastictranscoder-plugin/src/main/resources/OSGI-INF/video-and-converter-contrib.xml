@@ -1,33 +1,35 @@
 <?xml version="1.0"?>
 <component name="org.nuxeo.aws.elastictranscoder.videoandconverter.contrib">
 
+	<!-- Declare the available transcoders. The UI will display them -->
 	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
 		point="videoConversions">
 
-		<videoConversion
-			name="AWS Elastic Transcoder: Web (Facebook, SmugMug, Vimeo, YouTube)"
+		<videoConversion name="Elastic Transcoder: Web (Facebook, YouTube, ...)"
 			converter="awsET_presetWeb" />
 		<videoConversion
-			name="AWS Elastic Transcoder: iPhone5, iPhone 4S, iPad 4G and 3G, iPad mini, Samsung Galaxy S2/S3/Tab 2"
+			name="Elastic Transcoder: iPhone5/4S, iPad 3-4G/mini, Galaxy S2/S3/Tab 2"
 			converter="awsET_presetIPhone5" />
 
 	</extension>
 
+	<!-- These one won't be automatic. User will have to explicitly start them -->
 	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
 		point="automaticVideoConversions">
 
-		<!-- None for first test -->
 		<automaticVideoConversion
-			name="AWS Elastic Transcoder: Web (Facebook, SmugMug, Vimeo, YouTube)"
-			enabled="false" order="0" />
+			name="Elastic Transcoder: Web (Facebook, YouTube, ...)" enabled="false"
+			order="0" />
 		<automaticVideoConversion
-			name="AWS Elastic Transcoder: iPhone5, iPhone 4S, iPad 4G and 3G, iPad mini, Samsung Galaxy S2/S3/Tab 2"
+			name="Elastic Transcoder: iPhone5/4S, iPad 3-4G/mini, Galaxy S2/S3/Tab 2"
 			enabled="false" order="0" />
 
 	</extension>
 
+	<!-- preset IDs come from AWS: http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html -->
 	<extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
 		point="converter">
+		
 		<converter name="awsET_presetWeb"
 			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
 			<sourceMimeType>video/*</sourceMimeType>
@@ -37,6 +39,17 @@
 				<parameter name="outputFileSuffix">-web.mp4</parameter>
 			</parameters>
 		</converter>
+
+		<converter name="awsET_presetIPhone5"
+			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+			<sourceMimeType>video/*</sourceMimeType>
+			<destinationMimeType>video/mp4</destinationMimeType>
+			<parameters>
+				<parameter name="presetId">1351620000001-100020</parameter>
+				<parameter name="outputFileSuffix">-ip5.mp4</parameter>
+			</parameters>
+		</converter>
+
 	</extension>
 
 </component>
