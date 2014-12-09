@@ -23,9 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoder;
+import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoderConstants;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.ClientException;
 import org.nuxeo.ecm.core.api.blobholder.BlobHolder;
@@ -34,21 +36,25 @@ import org.nuxeo.ecm.core.convert.api.ConversionException;
 import org.nuxeo.ecm.core.convert.cache.SimpleCachableBlobHolder;
 import org.nuxeo.ecm.core.convert.extension.Converter;
 import org.nuxeo.ecm.core.convert.extension.ConverterDescriptor;
+import org.nuxeo.runtime.api.Framework;
 
 /**
  * The converter is contributed via an XML extension (see
  * video-and-converter-contrib.xml). The contribution has the following
  * parameters:
  * <ul>
- * <li><code>presetId</code>
- * <ul>
- * <li><b>Required</b></li>
- * <li>The AWS preset id</li>
+ * <li>inputBucket</li>
+ * <li>outputBucket</li>
+ * <li>pipelineId</li>
+ * <li>presetId</li>
+ * <li>sqsQueueUrl</li>
+ * <li>outputFileSuffix: Must contain at least the file extension to use (to
+ * generate the <code>filename</code> field of the resulting blob)</li>
  * </ul>
- * </li>
- * <li><code>outputFileSuffix</code>: Must contain at least the file extension
- * to use (to generate the <code>filename</code> field of the resuting blob)</li>
- * </ul>
+ * <p>
+ * If a parameter is missing, the class gets it from the configuration
+ * (nuxeo.conf). If it is not there, the conversion will fail. (except for
+ * <code>outputFileSuffix</code> which is optional)
  *
  * @since 7.1
  */
@@ -56,26 +62,39 @@ public class AWSElasticTranscoderConverter implements Converter {
 
     private static Log log = LogFactory.getLog(AWSElasticTranscoderConverter.class);
 
+    protected String inputBucket;
+
+    protected String outputBucket;
+
+    protected String pipelineId;
+
     protected String presetId;
 
+    protected String sqsQueueUrl;
+
     protected String outputFileSuffix;
-
-    protected static String INTPUTBUCKET = "nuxeo-transcoding-input";
-
-    protected static String OUTPUTBUCKET = "nuxeo-transcoding-output";
-
-    protected static String PIPELINE_NAME = "nuxeo-transcoding-pipeline";
-
-    protected static String PIPELINE_ID = "1417822775841-udlnwk";
-
-    protected static String SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue";
 
     @Override
     public void init(ConverterDescriptor descriptor) {
 
         Map<String, String> params = descriptor.getParameters();
-        presetId = params.get("presetId");
+        inputBucket = StringUtils.defaultIfBlank(params.get("inputBucket"),
+                AWSElasticTranscoderConstants.getDefaultBucketInput());
+        
+        outputBucket = StringUtils.defaultIfBlank(params.get("outputBucket"),
+                AWSElasticTranscoderConstants.getDefaultBucketOutput());
+        
+        pipelineId = StringUtils.defaultIfBlank(params.get("pipelineId"),
+                AWSElasticTranscoderConstants.getDefaultPipelineId());
+        
+        presetId = StringUtils.defaultIfBlank(params.get("presetId"),
+                AWSElasticTranscoderConstants.getDefaultPresetId());
+        
+        sqsQueueUrl = StringUtils.defaultIfBlank(params.get("sqsQueueUrl"),
+                AWSElasticTranscoderConstants.getDefaultSqsQueueUrl());
+        
         outputFileSuffix = params.get("outputFileSuffix");
+
     }
 
     @Override
@@ -87,14 +106,14 @@ public class AWSElasticTranscoderConverter implements Converter {
         Blob theBlob = blobHolder.getBlob();
         try {
             AWSElasticTranscoder transcoder = new AWSElasticTranscoder(theBlob,
-                    presetId, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
-                    SQS_QUEUE_URL);
-            
+                    presetId, inputBucket, outputBucket, pipelineId,
+                    sqsQueueUrl, outputFileSuffix);
+
             transcoder.transcode();
 
             FileBlob transcodedBlob = transcoder.getTranscodedBlob();
             results.add(transcodedBlob);
-            
+
         } catch (ClientException | IOException e) {
             log.error("Cannot convert video", e);
         }

@@ -12,9 +12,11 @@ import java.util.Properties;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoder;
+import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoderConstants;
 import org.nuxeo.aws.elastictranscoder.GenericAWSClient;
 import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.CoreSession;
@@ -40,7 +42,7 @@ public class AWSElasticTranscoderTest {
 
     // These buckets are created with the AWS nuxeo presales credentials
     // The keys are set in the nuxeo server configuration file.
-    
+
     protected static String INTPUTBUCKET = "nuxeo-transcoding-input";
 
     protected static String OUTPUTBUCKET = "nuxeo-transcoding-output";
@@ -56,9 +58,13 @@ public class AWSElasticTranscoderTest {
     // Web: Facebook, SmugMug, Vimeo, YouTube
     protected static final String PRESET_WEB = "1351620000001-100070";
 
+    protected static final String PRESET_WEB_OUTPUT_SUFFIX = "-web.mp4";
+
     // iPhone 5, iPhone 4S, iPad 4G and 3G, iPad mini, Samsung Galaxy S2/S3/Tab
     // 2
     protected static final String PRESET_iPHONE_5 = "1351620000001-100020";
+
+    protected static final String PRESET_iPHONE_5_OUTPUT_SUFFIX = "-ip5.mp4";
 
     @Inject
     CoreSession coreSession;
@@ -73,10 +79,10 @@ public class AWSElasticTranscoderTest {
         fileInput.close();
 
         Properties systemProps = System.getProperties();
-        systemProps.setProperty(GenericAWSClient.CONF_AWS_KEY_ACCESS,
-                props.getProperty(GenericAWSClient.CONF_AWS_KEY_ACCESS));
-        systemProps.setProperty(GenericAWSClient.CONF_AWS_KEY_SECRET,
-                props.getProperty(GenericAWSClient.CONF_AWS_KEY_SECRET));
+        systemProps.setProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_ACCESS,
+                props.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_ACCESS));
+        systemProps.setProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_SECRET,
+                props.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_SECRET));
 
     }
 
@@ -92,34 +98,35 @@ public class AWSElasticTranscoderTest {
         FileBlob fb = new FileBlob(f);
 
         AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
-                /*PRESET_WEB*/PRESET_iPHONE_5, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
-                SQS_QUEUE_URL);
+                PRESET_iPHONE_5, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
+                SQS_QUEUE_URL, PRESET_iPHONE_5_OUTPUT_SUFFIX);
 
         transcoder.transcode();
 
         FileBlob result = transcoder.getTranscodedBlob();
         assertNotNull(result);
-        //File tmp = new File("/Users/thibaud/Desktop/coucou");
-        //result.transferTo(tmp);
-        System.out.println(result.getFilename() + " - " + result.getMimeType());
 
-        // Check it is a valid
+        // Check it is a valid iPhone... video
         // . . .
     }
 
+    @Ignore
     @Test
-    public void testConverter() throws Exception {
-        // Here we test a VideoConversionConverter
+    public void testTranscodeVideoToWeb() throws Exception {
+        File f = FileUtils.getResourceFileFromContext(VIDEO_MP4);
+        FileBlob fb = new FileBlob(f);
 
-        // create a Video document...
+        AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
+                PRESET_WEB, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
+                SQS_QUEUE_URL, PRESET_WEB_OUTPUT_SUFFIX);
 
-        // add the binary...
+        transcoder.transcode();
 
-        // save...
+        FileBlob result = transcoder.getTranscodedBlob();
+        assertNotNull(result);
 
-        // Wait...
-
-        // Check the transcoded video(s) is/are available
+        // Check it is a valid "web" video...
+        // . . .
     }
 
 }

@@ -38,10 +38,12 @@ import com.amazonaws.services.elastictranscoder.model.CreateJobOutput;
 import com.amazonaws.services.elastictranscoder.model.CreateJobRequest;
 import com.amazonaws.services.elastictranscoder.model.CreateJobResult;
 import com.amazonaws.services.elastictranscoder.model.JobInput;
+import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.io.Files;
 
 /**
- * First draft, 2014-12
+ * <i>[Please, see the README file to understand implementation, and actually
+ * the limitation of this first implementation (mainly: It does not scale)]</i>
  * <p>
  * This class handles the following:
  * <ul>
@@ -69,7 +71,8 @@ import com.google.common.io.Files;
  * <li>A valid S3 output bucket (can be the same as the input)</li>
  * <li>An existing SNS topic for the notification</li>
  * <li>An existing SQS which has subscribed to the SNS topic</li>
- * <li>A pipeline already created, referencing the bucket(s) and the the notification</li>
+ * <li>A pipeline already created, referencing the bucket(s) and the the
+ * notification</li>
  * </ul>
  * 
  * <p>
@@ -130,11 +133,15 @@ public class AWSElasticTranscoder {
     protected String inputKey;
 
     protected String outputKey;
+    
+    protected String outputFileSuffix;
 
     protected GenericAWSClient genericAwsClient;
 
+    protected AWSS3Handler s3Handler;
+
     /*
-     * Handling the progression so at cleanup timen we know what can be cleaned
+     * Handling the progression so at cleanup time we know what can be cleaned
      * up (avoid trying to delete a file on S3 if we know we never could not
      * send it)
      */
@@ -179,9 +186,10 @@ public class AWSElasticTranscoder {
      */
     public AWSElasticTranscoder(Blob inBlob, String inPresetId,
             String inInputBucket, String inOutputBucket, String inPipelineId,
-            String inSQSQueueURL) throws IOException {
+            String inSQSQueueURL, String inOutputFileSuffix) throws IOException {
 
         genericAwsClient = new GenericAWSClient();
+        s3Handler = new AWSS3Handler(genericAwsClient.getS3Client());
 
         blob = inBlob;
         fileOfBlob = BlobHelper.getFileFromBlob(blob);
@@ -215,6 +223,7 @@ public class AWSElasticTranscoder {
         outputS3Bucket = inOutputBucket;
         pipelineId = inPipelineId;
         sqsQueueURL = inSQSQueueURL;
+        outputFileSuffix = StringUtils.isBlank(inOutputFileSuffix) ? "" : inOutputFileSuffix;
 
         uniqueFilePrefix = java.util.UUID.randomUUID().toString().replace("-",
                 "")
@@ -249,8 +258,6 @@ public class AWSElasticTranscoder {
 
             // Get the transcoded video
             if (jobEndState == JobState.ERROR) {
-                // TODO Something else than just throw the error maybe?
-                // At least, give more details
                 throw new RuntimeException(
                         "An error occured while transcoding file " + inputKey);
             } else {
@@ -312,9 +319,7 @@ public class AWSElasticTranscoder {
      */
     protected void buildOutputKeyName() {
 
-        String key = uniqueFilePrefix + fileOfBlob.getName();
-        // String ext = Files.getFileExtension(key);
-        // key = key.replace("." + ext, "");
+        String key = uniqueFilePrefix + fileOfBlob.getName() + outputFileSuffix;
 
         outputKey = key;
     }
@@ -327,24 +332,24 @@ public class AWSElasticTranscoder {
 
     protected void sendFileToInputBucket() throws RuntimeException {
 
-        AWSS3Handler s3 = new AWSS3Handler(inputS3Bucket);
-        s3.sendFile(inputKey, fileOfBlob);
+        s3Handler.setBucket(inputS3Bucket);
+        s3Handler.sendFile(inputKey, fileOfBlob);
 
     }
 
     protected void getFileFromOutputBucket() throws IOException,
             RuntimeException {
 
-        AWSS3Handler s3 = new AWSS3Handler(outputS3Bucket);
-        transcodedBlob = s3.downloadFile(outputKey, getOutputFileName());
+        s3Handler.setBucket(outputS3Bucket);
+        transcodedBlob = s3Handler.downloadFile(outputKey, getOutputFileName());
     }
 
     protected void deleteInputFileOnS3IfNeeded(boolean inIgnoreError) {
 
         if (step.canDeleteInputFileOnS3()) {
             try {
-                AWSS3Handler s3 = new AWSS3Handler(inputS3Bucket);
-                s3.deleteFile(inputKey);
+                s3Handler.setBucket(inputS3Bucket);
+                s3Handler.deleteFile(inputKey);
             } catch (Exception e) {
                 if (inIgnoreError) {
                     log.error("Error when deleting file " + inputKey
@@ -361,8 +366,8 @@ public class AWSElasticTranscoder {
 
         if (step.canDeleteOutputFileOnS3()) {
             try {
-                AWSS3Handler s3 = new AWSS3Handler(outputS3Bucket);
-                s3.deleteFile(outputKey);
+                s3Handler.setBucket(outputS3Bucket);
+                s3Handler.deleteFile(outputKey);
             } catch (Exception e) {
                 if (inIgnoreError) {
                     log.error("Error when deleting file " + outputKey
@@ -382,18 +387,16 @@ public class AWSElasticTranscoder {
         // Setup the job input
         JobInput jobInput = new JobInput().withKey(inputKey);
 
-        // Setup the job output using the provided input key to generate an
-        // output key.
-        List<CreateJobOutput> outputs = new ArrayList<CreateJobOutput>();
+        // We create just one job here. Look at the code sample in
+        // JobStatusNotificationsSample.java to see how to create several jobs
+        // in one call.
         CreateJobOutput output = new CreateJobOutput().withKey(outputKey);
         output.withPresetId(presetId);
-        outputs.add(output);
-
         // Create a job on the specified pipeline and get the job ID
         CreateJobRequest createJobRequest = new CreateJobRequest();
         createJobRequest.withPipelineId(pipelineId);
         createJobRequest.withInput(jobInput);
-        createJobRequest.withOutputs(outputs);
+        createJobRequest.withOutput(output);
 
         CreateJobResult cjr = genericAwsClient.getElasticTranscoder().createJob(
                 createJobRequest);

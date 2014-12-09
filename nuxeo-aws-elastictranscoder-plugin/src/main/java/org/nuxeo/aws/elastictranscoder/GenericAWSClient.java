@@ -58,17 +58,6 @@ import com.amazonaws.services.sqs.AmazonSQSClient;
  */
 public class GenericAWSClient {
 
-    // The keys in nuxeo.conf
-    public static final String CONF_AWS_KEY_ACCESS = "aws.transcoder.key";
-
-    public static final String CONF_AWS_KEY_SECRET = "aws.transcoder.secret";
-
-    // Names of env. variable names as expected by AWS, if used instead of
-    // nuxeo.conf
-    public static final String AWS_ENV_VAR_ACCESS_KEY = "AWS_ACCESS_KEY_ID";
-
-    public static final String AWS_ENV_VAR_SECRET_KEY = "AWS_SECRET_ACCESS_KEY";
-
     private static String awsAccessKeyId;
 
     private static String awsSecretAccessKey;
@@ -131,15 +120,15 @@ public class GenericAWSClient {
                 // Another thread may have filled the variables while we were
                 // acquiring the lock => check again.
                 if (awsKeysCheckedStatus == -1) {
-                    awsAccessKeyId = Framework.getProperty(CONF_AWS_KEY_ACCESS);
-                    awsSecretAccessKey = Framework.getProperty(CONF_AWS_KEY_SECRET);
+                    awsAccessKeyId = Framework.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_ACCESS);
+                    awsSecretAccessKey = Framework.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_SECRET);
 
                     // Fallback if the keys are not there
                     if (StringUtils.isBlank(awsAccessKeyId)) {
-                        awsAccessKeyId = System.getenv(AWS_ENV_VAR_ACCESS_KEY);
+                        awsAccessKeyId = System.getenv(AWSElasticTranscoderConstants.AWS_ENV_VAR_ACCESS_KEY);
                     }
                     if (StringUtils.isBlank(awsSecretAccessKey)) {
-                        awsSecretAccessKey = System.getenv(AWS_ENV_VAR_SECRET_KEY);
+                        awsSecretAccessKey = System.getenv(AWSElasticTranscoderConstants.AWS_ENV_VAR_SECRET_KEY);
                     }
 
                     if (StringUtils.isBlank(awsAccessKeyId)

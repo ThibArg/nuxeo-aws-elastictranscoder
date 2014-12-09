@@ -24,6 +24,7 @@ import org.nuxeo.runtime.api.Framework;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -41,19 +42,27 @@ public class AWSS3Handler {
 
     protected String bucket;
 
-    protected GenericAWSClient genericAwsClient;
+    protected AmazonS3 amazonS3;
 
-    public AWSS3Handler(String inBucket) {
+    public AWSS3Handler(AmazonS3 inS3, String inBucket) {
+
+        amazonS3 = inS3;
         bucket = inBucket;
-
-        genericAwsClient = new GenericAWSClient();
+    }
+    
+    public AWSS3Handler(AmazonS3 inS3) {
+        
+        amazonS3 = inS3;
+    }
+    
+    public void setBucket(String inBucket) {
+        bucket = inBucket;
     }
 
     public void sendFile(String inKey, File inFile) throws RuntimeException {
 
         try {
-            genericAwsClient.getS3Client().putObject(
-                    new PutObjectRequest(bucket, inKey, inFile));
+            amazonS3.putObject(new PutObjectRequest(bucket, inKey, inFile));
 
         } catch (AmazonServiceException ase) {
             String message = GenericAWSClient.buildDetailedMessageFromAWSException(ase);
@@ -78,7 +87,7 @@ public class AWSS3Handler {
 
         try {
             GetObjectRequest gor = new GetObjectRequest(bucket, inKey);
-            metadata = genericAwsClient.getS3Client().getObject(gor, tmp);
+            metadata = amazonS3.getObject(gor, tmp);
 
         } catch (AmazonServiceException ase) {
             String message = GenericAWSClient.buildDetailedMessageFromAWSException(ase);
@@ -99,9 +108,9 @@ public class AWSS3Handler {
     }
 
     public void deleteFile(String inKey) throws RuntimeException {
-        
+
         try {
-            genericAwsClient.getS3Client().deleteObject(bucket, inKey);
+            amazonS3.deleteObject(bucket, inKey);
         } catch (AmazonServiceException ase) {
             String message = GenericAWSClient.buildDetailedMessageFromAWSException(ase);
             throw new RuntimeException(message);
