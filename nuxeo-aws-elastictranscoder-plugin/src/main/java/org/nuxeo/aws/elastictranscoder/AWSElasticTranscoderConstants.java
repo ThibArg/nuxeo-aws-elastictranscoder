@@ -16,10 +16,13 @@
  */
 package org.nuxeo.aws.elastictranscoder;
 
+import org.apache.commons.lang.StringUtils;
 import org.nuxeo.runtime.api.Framework;
 
 /**
- * 
+ * WARNING: Default values for "delete input file when done" and
+ * "delete output file when done" are "true": Files will be deleted on S3 after
+ * the conversion is done and the result downloaded
  *
  * @since 7.1
  */
@@ -48,6 +51,9 @@ public class AWSElasticTranscoderConstants {
 
     public static final String CONF_KEY_SQS_URL = "aws.transcoder.default.sqs.url";
 
+    public static final String CONF_KEY_DELETE_INPUT_FILE_WHEN_DONE = "aws.transcoder.default.deleteinputfilewhendone";
+
+    public static final String CONF_KEY_DELETE_OUTPUT_FILE_WHEN_DONE = "aws.transcoder.default.deleteoutputfilewhendone";
 
     // ================================================== Loaded values
     private static String inputBucket;
@@ -59,45 +65,77 @@ public class AWSElasticTranscoderConstants {
     private static String presetId;
 
     private static String sqsQueueUrl;
-    
+
+    private static Boolean deleteInputFileWhenDone;
+
+    private static Boolean deleteOutputFileWhenDone;
+
     public static String getDefaultBucketInput() {
-        if(inputBucket == null) {
+        if (inputBucket == null) {
             inputBucket = Framework.getProperty(CONF_KEY_INPUT_BUCKET);
         }
-        
+
         return inputBucket;
     }
-    
+
     public static String getDefaultBucketOutput() {
-        if(outputBucket == null) {
+        if (outputBucket == null) {
             outputBucket = Framework.getProperty(CONF_KEY_OUTPUT_BUCKET);
         }
-        
+
         return outputBucket;
     }
-    
+
     public static String getDefaultPipelineId() {
-        if(pipelineId == null) {
+        if (pipelineId == null) {
             pipelineId = Framework.getProperty(CONF_KEY_PIPELINE_ID);
         }
-        
+
         return pipelineId;
     }
-    
+
     public static String getDefaultPresetId() {
-        if(presetId == null) {
+        if (presetId == null) {
             presetId = Framework.getProperty(CONF_KEY_PRESET_ID);
         }
-        
+
         return presetId;
     }
-    
+
     public static String getDefaultSqsQueueUrl() {
-        if(sqsQueueUrl == null) {
+        if (sqsQueueUrl == null) {
             sqsQueueUrl = Framework.getProperty(CONF_KEY_SQS_URL);
         }
-        
+
         return sqsQueueUrl;
+    }
+
+    public static boolean getDefaultDeleteInputFileWhenDone() {
+
+        if (deleteInputFileWhenDone == null) {
+            String str = Framework.getProperty(CONF_KEY_DELETE_INPUT_FILE_WHEN_DONE);
+            if (StringUtils.isBlank(str)) {
+                deleteInputFileWhenDone = true;
+            } else {
+                deleteInputFileWhenDone = str.toLowerCase().equals("true");
+            }
+        }
+
+        return deleteInputFileWhenDone;
+    }
+
+    public static boolean getDefaultDeleteOutputFileWhenDone() {
+
+        if (deleteOutputFileWhenDone == null) {
+            String str = Framework.getProperty(CONF_KEY_DELETE_OUTPUT_FILE_WHEN_DONE);
+            if (StringUtils.isBlank(str)) {
+                deleteOutputFileWhenDone = true;
+            } else {
+                deleteOutputFileWhenDone = str.toLowerCase().equals("true");
+            }
+        }
+
+        return deleteOutputFileWhenDone;
     }
 
 }

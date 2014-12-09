@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<component
+	name="org.nuxeo.aws.elastictranscoder.videoandconverter.test.contrib">
+
+	<!-- Declare the available transcoders. The UI will display them -->
+	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
+		point="videoConversions">
+
+		<!-- Facebook, YouTube, ... -->
+		<videoConversion name="Elastic Transcoder: Web"
+			converter="awsET_presetWeb" />
+
+		<!-- iPhone5/4S, iPad 3-4G/mini, Galaxy S2/S3/Tab 2 -->
+		<videoConversion name="Elastic Transcoder: iPhone5"
+			converter="awsET_presetIPhone5" />
+
+		<videoConversion name="Elastic Transcoder: Generic 480p 4:3"
+			converter="awsET_presetGeneric480p4-3" />
+
+	</extension>
+
+	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
+		point="automaticVideoConversions">
+
+		<!-- These one won't be automatic. User will have to explicitly start them -->
+		<automaticVideoConversion name="Elastic Transcoder: Web"
+			enabled="false" order="0" />
+		<automaticVideoConversion name="Elastic Transcoder: iPhone5"
+			enabled="false" order="0" />
+
+		<!-- But this one is automatic -->
+		<automaticVideoConversion name="Elastic Transcoder: Generic 480p 4:3"
+			order="0" />
+
+		<!-- Also, for the test, we disable the other automatic conversions -->
+		<automaticVideoConversion name="MP4 480p"
+			enabled="false" order="0" />
+		<automaticVideoConversion name="WebM 480p"
+			enabled="false" order="10" />
+
+	</extension>
+
+	<!-- preset IDs come from AWS: http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html -->
+	<extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
+		point="converter">
+
+		<converter name="awsET_presetWeb"
+			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+			<sourceMimeType>video/*</sourceMimeType>
+			<destinationMimeType>video/mp4</destinationMimeType>
+			<parameters>
+				<parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+				<parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+				<parameter name="pipelineId">1417822775841-udlnwk</parameter>
+				<parameter name="presetId">1351620000001-100070</parameter>
+				<parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue
+				</parameter>
+				<parameter name="deleteInputFileWhenDone">true</parameter>
+				<parameter name="deleteOutputFileWhenDone">true</parameter>
+				<parameter name="outputFileSuffix">-web.mp4</parameter>
+			</parameters>
+		</converter>
+
+		<converter name="awsET_presetIPhone5"
+			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+			<sourceMimeType>video/*</sourceMimeType>
+			<destinationMimeType>video/mp4</destinationMimeType>
+			<parameters>
+				<parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+				<parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+				<parameter name="pipelineId">1417822775841-udlnwk</parameter>
+				<parameter name="presetId">1351620000001-100020</parameter>
+				<parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue
+				</parameter>
+				<parameter name="deleteInputFileWhenDone">true</parameter>
+				<parameter name="deleteOutputFileWhenDone">true</parameter>
+				<parameter name="outputFileSuffix">-ip5.mp4</parameter>
+			</parameters>
+		</converter>
+
+		<converter name="awsET_presetGeneric480p4-3"
+			class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+			<sourceMimeType>video/*</sourceMimeType>
+			<destinationMimeType>video/mp4</destinationMimeType>
+			<parameters>
+				<parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+				<parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+				<parameter name="pipelineId">1417822775841-udlnwk</parameter>
+				<parameter name="presetId">1351620000001-000030</parameter>
+				<parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue
+				</parameter>
+				<parameter name="deleteInputFileWhenDone">true</parameter>
+				<parameter name="deleteOutputFileWhenDone">true</parameter>
+				<parameter name="outputFileSuffix">-ip5.mp4</parameter>
+			</parameters>
+		</converter>
+
+	</extension>
+
+</component>

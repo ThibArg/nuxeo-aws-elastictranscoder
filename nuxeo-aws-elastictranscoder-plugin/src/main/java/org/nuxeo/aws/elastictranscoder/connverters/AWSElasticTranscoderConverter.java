@@ -48,13 +48,16 @@ import org.nuxeo.runtime.api.Framework;
  * <li>pipelineId</li>
  * <li>presetId</li>
  * <li>sqsQueueUrl</li>
- * <li>outputFileSuffix: Must contain at least the file extension to use (to
- * generate the <code>filename</code> field of the resulting blob)</li>
+ * <li>deleteInputFileWhenDone</li>
+ * <li>deleteOutputFileWhenDone</li>
+ * <li>outputFileSuffix: file extension to use (to generate the
+ * <code>filename</code> field of the resulting blob). Can be actually anything
+ * that will be added to the filename</li>
  * </ul>
  * <p>
- * If a parameter is missing, the class gets it from the configuration
- * (nuxeo.conf). If it is not there, the conversion will fail. (except for
- * <code>outputFileSuffix</code> which is optional)
+ * For all parameters except <code>outputFileSuffix</code>: If a parameter is
+ * missing, the class gets it from the configuration (nuxeo.conf). If it is not
+ * there, the conversion will fail.
  *
  * @since 7.1
  */
@@ -72,6 +75,10 @@ public class AWSElasticTranscoderConverter implements Converter {
 
     protected String sqsQueueUrl;
 
+    protected boolean deleteInputFileWhenDone;
+
+    protected boolean deleteOutputFileWhenDone;
+
     protected String outputFileSuffix;
 
     @Override
@@ -80,19 +87,33 @@ public class AWSElasticTranscoderConverter implements Converter {
         Map<String, String> params = descriptor.getParameters();
         inputBucket = StringUtils.defaultIfBlank(params.get("inputBucket"),
                 AWSElasticTranscoderConstants.getDefaultBucketInput());
-        
+
         outputBucket = StringUtils.defaultIfBlank(params.get("outputBucket"),
                 AWSElasticTranscoderConstants.getDefaultBucketOutput());
-        
+
         pipelineId = StringUtils.defaultIfBlank(params.get("pipelineId"),
                 AWSElasticTranscoderConstants.getDefaultPipelineId());
-        
+
         presetId = StringUtils.defaultIfBlank(params.get("presetId"),
                 AWSElasticTranscoderConstants.getDefaultPresetId());
-        
+
         sqsQueueUrl = StringUtils.defaultIfBlank(params.get("sqsQueueUrl"),
                 AWSElasticTranscoderConstants.getDefaultSqsQueueUrl());
-        
+
+        String str = params.get("deleteInputfileWhenDone");
+        if (StringUtils.isBlank(str)) {
+            deleteInputFileWhenDone = AWSElasticTranscoderConstants.getDefaultDeleteInputFileWhenDone();
+        } else {
+            deleteInputFileWhenDone = str.toLowerCase().equals("true");
+        }
+
+        str = params.get("deleteOutputFileWhenDone");
+        if (StringUtils.isBlank(str)) {
+            deleteOutputFileWhenDone = AWSElasticTranscoderConstants.getDefaultDeleteOutputFileWhenDone();
+        } else {
+            deleteOutputFileWhenDone = str.toLowerCase().equals("true");
+        }
+
         outputFileSuffix = params.get("outputFileSuffix");
 
     }
@@ -100,7 +121,7 @@ public class AWSElasticTranscoderConverter implements Converter {
     @Override
     public BlobHolder convert(BlobHolder blobHolder,
             Map<String, Serializable> parameters) throws ConversionException {
-
+        
         List<Blob> results = new ArrayList<Blob>();
 
         Blob theBlob = blobHolder.getBlob();
@@ -117,7 +138,7 @@ public class AWSElasticTranscoderConverter implements Converter {
         } catch (ClientException | IOException e) {
             log.error("Cannot convert video", e);
         }
-
+        
         return new SimpleCachableBlobHolder(results);
     }
 

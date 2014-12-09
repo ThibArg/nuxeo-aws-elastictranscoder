@@ -2,6 +2,7 @@
 <component name="org.nuxeo.aws.elastictranscoder.videoandconverter.contrib">
 
 	<!-- Declare the available transcoders. The UI will display them -->
+	<!--
 	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
 		point="videoConversions">
 
@@ -12,8 +13,10 @@
 			converter="awsET_presetIPhone5" />
 
 	</extension>
+	-->
 
 	<!-- These one won't be automatic. User will have to explicitly start them -->
+	<!--
 	<extension target="org.nuxeo.ecm.platform.video.service.VideoService"
 		point="automaticVideoConversions">
 
@@ -25,8 +28,10 @@
 			enabled="false" order="0" />
 
 	</extension>
+	-->
 
 	<!-- preset IDs come from AWS: http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html -->
+	<!--
 	<extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
 		point="converter">
 		
@@ -35,7 +40,13 @@
 			<sourceMimeType>video/*</sourceMimeType>
 			<destinationMimeType>video/mp4</destinationMimeType>
 			<parameters>
+				<parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+				<parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+				<parameter name="pipelineId">nuxeo-transcoding-pipeline</parameter>
 				<parameter name="presetId">1351620000001-100070</parameter>
+				<parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue</parameter>
+				<parameter name="deleteInputFileWhenDone">true</parameter>
+				<parameter name="deleteOutputFileWhenDone">true</parameter>
 				<parameter name="outputFileSuffix">-web.mp4</parameter>
 			</parameters>
 		</converter>
@@ -45,11 +56,18 @@
 			<sourceMimeType>video/*</sourceMimeType>
 			<destinationMimeType>video/mp4</destinationMimeType>
 			<parameters>
+				<parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+				<parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+				<parameter name="pipelineId">nuxeo-transcoding-pipeline</parameter>
 				<parameter name="presetId">1351620000001-100020</parameter>
+				<parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue</parameter>
+				<parameter name="deleteInputFileWhenDone">true</parameter>
+				<parameter name="deleteOutputFileWhenDone">true</parameter>
 				<parameter name="outputFileSuffix">-ip5.mp4</parameter>
 			</parameters>
 		</converter>
 
 	</extension>
+	-->
 
 </component>
