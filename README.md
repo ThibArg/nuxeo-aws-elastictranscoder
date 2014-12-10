@@ -16,8 +16,8 @@ The plug-in requires the following elements:
 * An output S3 bucket (where AWS Elastic Transcoder will save the transcoded video)
 * A pipeline ID (used to push the video transcoding jobs)
 * A preset, letting the elastic Transcoder know what destination format you need
-** There are predefined System presets: http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html
-** But you can build your own custom preset
+  * There are predefined System presets: http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html
+  * But you can build your own custom preset
 * And a SQS URL, so the plugin detects when a video has been transcoded
 
 Assuming you already have an AWS account, you can follow the instructions at (this page)[http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/sample-code.html], these topics:
@@ -36,7 +36,46 @@ To connect to your AWS environment, the plug-in (actually, the underlying AWS SD
 aws.transcoder.key=1234567890ABCDEFGHIJ
 aws.transcoder.secret=AbCdEfGh1234567890iJkLmNoPqR+sTuVwXYZ012 
 ```
-* Or in Environment Variables, under the AWS key names
+* Or in Environment Variables, under the AWS key names, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+
+### Transcoding Videos
+To transcode videos, you must add XML contributions to your project. These contributions must contribute:
+* One or more `converter`, where you specify the misc. parameters (s3 buckets, pipeline id, ...)
+* one or more `videoConversion`
+* Optionally, some `automaticVideoConversion`
+
+The `converter` must have a unique name and declare the parameters used by the plug-in. For example:
+```
+<extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
+           point="converter">
+
+  <converter name="awsET_presetGeneric480p4-3"
+    class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter">
+    <sourceMimeType>video/*</sourceMimeType>
+    <destinationMimeType>video/mp4</destinationMimeType>
+    <parameters>
+      <parameter name="inputBucket">nuxeo-transcoding-input</parameter>
+      <parameter name="outputBucket">nuxeo-transcoding-output</parameter>
+      <parameter name="pipelineId">1417822775841-udlnwk</parameter>
+      <parameter name="presetId">1351620000001-000030</parameter>
+      <parameter name="sqsQueueUrl">https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue
+      </parameter>
+      <parameter name="deleteInputFileWhenDone">true</parameter>
+      <parameter name="deleteOutputFileWhenDone">true</parameter>
+      <parameter name="outputFileSuffix”>-480.mp4</parameter>
+    </parameters>
+  </converter>
+  
+</extension>
+```
+
+Some important details:
+* `pipelineId` is the ID of the pipeline, not its name
+* The same goes for the `presetID`. In this example, we are using the “Generic 490p 4:3” preset, whose ID is `1351620000001-000030`
+* `deleteInputFileWhenDone` and `deleteOutputFileWhenDone`
+  * By default, if not specified in the extension, the values are `true`, meaning the files are always deleted from their S3 bucket after the transcoding is done and the result video has been downloaded to the server.
+  * If you want/need to keep the files, set these parameters to `false`
+
 
 
 ### WARNING
