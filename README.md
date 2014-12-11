@@ -9,7 +9,7 @@ In order to use the plug-in, (once it is installed), you need:
 2. Setup your AWS authentication keys server-side, so the plug-in can connect to AWS
 3. Add an XML contribution to your nuxeo project, to automatically and/or manually transcode videos
 
-Also, please read the [Dependencies](#Dependencies) and the [Warning](#warning) parts of this documentation
+Also, please read the [Dependencies](#dependencies) and the [Warning](#warning) parts of this documentation
 
 ### AWS Environment
 The plug-in requires the following elements:
