@@ -162,7 +162,13 @@ The plug-ins depends on the AWS SDK version 1.9.9, which itself depends on versi
 This plug-in, even if it works very well, will not scale at large, it will require some adaptation if you need to transcode a lot of videos in a concurrent way.
 
 
-### Building
+### Install-Build
+
+#### Install
+
+You can use the Marketplace package located in the "Releases" tab of this GitHup repository. It is a regular package, you ca install it either from the UI (Admin Center > Update Center > Local packages) or from the command line if you prefer (`/nuxeoctl mp-install /path/to/nuxeo-aws-elastictranscoder-mp-7.1-SNAPSHOT.zip`)
+
+#### Build
 
 Assuming `maven` version 3.2 minimum is installed, you can just
 ```
