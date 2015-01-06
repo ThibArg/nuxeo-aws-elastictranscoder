@@ -5,7 +5,7 @@ The `nuxeo-aws-elastictranscoder` allows to use [Amazon Elastic Transcoder](http
 
 In order to use the plug-in, (once it is installed), you need:
 
-1. To setup the AWS environment (S3 bucket(s), Pipeline, ...)
+1. To setup your AWS environment (S3 bucket(s), Pipeline, ...)
 2. Setup your AWS authentication keys server-side, so the plug-in can connect to AWS
 3. Add an XML contribution to your nuxeo project, to automatically and/or manually transcode videos
 
@@ -21,7 +21,7 @@ The plug-in requires the following elements:
   * You can build your own custom preset
 * And a SQS URL, so the plugin detects when a video has been transcoded
 
-Assuming you already have an AWS account, you can follow the instructions at [this page](http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/sample-code.html), these topics:
+Assuming you already have an AWS account, you can follow the instructions at [this page](http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/sample-code.html). See these topics:
 * Creating Amazon S3 input and output buckets
 * Creating an Amazon SNS topic to receive job status notifications
 * Creating an Amazon SQS queue to poll for job status notifications
@@ -31,13 +31,13 @@ Assuming you already have an AWS account, you can follow the instructions at [th
 Once these elements are available, using the plug-in is quite easy. Notice that the plug-in is not limited to one S3 input bucket, one pipeline, etc. It allows to use different elements. This can be useful if you need to have, for example, a _normal_ priority transcoding set, and a _high availability_ one which would be using big AWS environments (fast i/o, fast drives, ...)
 
 ### Authentication Keys
-To connect to your AWS environment, the plug-in (actually, the underlying AWS SDK) needs the Key ID and Secret Key provide by AWS. These keys must be available server side and can be installed:
+To connect to your AWS environment, the plug-in (actually, the underlying AWS SDK) needs the Key ID and Secret Key provided by AWS. These keys must be available server side and can be installed:
 * In the `nuxeo.conf` file using the following parameters: `aws.transcoder.key` and `aws.transcoder.secret`. For example:
 ```
 aws.transcoder.key=1234567890ABCDEFGHIJ
-aws.transcoder.secret=AbCdEfGh1234567890iJkLmNoPqR+sTuVwXYZ012 
+aws.transcoder.secret=AbCdEFgh1234567890iJkLmNoPqR+sTuVwXYZ012 
 ```
-* Or in Environment Variables, under the AWS key names, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+* Or in Environment Variables, under the AWS official key names, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ### Transcoding Videos
 To transcode videos, you must add XML contributions to your project. You must contribute:
