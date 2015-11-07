@@ -1,4 +1,4 @@
-nuxeo-aws-elastictranscoder
+Inuxeo-aws-elastictranscoder
 =====
 
 The `nuxeo-aws-elastictranscoder` allows to use [Amazon Elastic Transcoder](http://aws.amazon.com/elastictranscoder/) to transcode any video.
@@ -166,7 +166,7 @@ This plug-in, even if it works very well, will not scale at large, it will requi
 
 #### Install
 
-You can use the Marketplace package located in the "Releases" tab of this GitHup repository. It is a regular package, you ca install it either from the UI (Admin Center > Update Center > Local packages) or from the command line if you prefer (`/nuxeoctl mp-install /path/to/nuxeo-aws-elastictranscoder-mp-7.1-SNAPSHOT.zip`)
+You can use the Marketplace package located in the "Releases" tab of this GitHup repository. It is a regular package, you ca install it either from the UI (Admin Center > Update Center > Local packages) or from the command line if you prefer (`/nuxeoctl mp-install /path/to/nuxeo-aws-elastictranscoder-mp-7.1-SNAPSHOT.zip`).
 
 #### Build
 

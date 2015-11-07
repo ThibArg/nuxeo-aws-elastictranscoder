@@ -146,7 +146,7 @@ public class AWSElasticTranscoder {
      * send it)
      */
     protected enum STEP {
-        INIT(0), INPUT_FILE_SENT(2), TRANSCODING_DONE(2), OUTPUT_FILE_DOWNLOADED(
+        INIT(0), INPUT_FILE_SENT(1), TRANSCODING_DONE(2), OUTPUT_FILE_DOWNLOADED(
                 3);
 
         private int step;
@@ -205,16 +205,16 @@ public class AWSElasticTranscoder {
         if (StringUtils.isBlank(inPresetId)) {
             throw new RuntimeException("PresetId is blank");
         }
-        if (StringUtils.isBlank(inPresetId)) {
+        if (StringUtils.isBlank(inInputBucket)) {
             throw new RuntimeException("InputBucket is blank");
         }
-        if (StringUtils.isBlank(inPresetId)) {
+        if (StringUtils.isBlank(inOutputBucket)) {
             throw new RuntimeException("utputBucket is blank");
         }
-        if (StringUtils.isBlank(inPresetId)) {
+        if (StringUtils.isBlank(inPipelineId)) {
             throw new RuntimeException("PipelineId is blank");
         }
-        if (StringUtils.isBlank(inPresetId)) {
+        if (StringUtils.isBlank(inSQSQueueURL)) {
             throw new RuntimeException("QSQueueURL is blank");
         }
 
