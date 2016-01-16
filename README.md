@@ -13,6 +13,7 @@ Also, please read the [Dependencies](#dependencies) and the [Warning](#warning) 
 
 ### AWS Environment
 The plug-in requires the following elements:
+
 * An input S3 bucket (where nuxeo will upload the video to be transcoded)
 * An output S3 bucket (where AWS Elastic Transcoder will save the transcoded video)
 * A pipeline ID (used to push the video transcoding jobs)
@@ -22,6 +23,7 @@ The plug-in requires the following elements:
 * And a SQS URL, so the plugin detects when a video has been transcoded
 
 Assuming you already have an AWS account, you can follow the instructions at [this page](http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/sample-code.html). See these topics:
+
 * Creating Amazon S3 input and output buckets
 * Creating an Amazon SNS topic to receive job status notifications
 * Creating an Amazon SQS queue to poll for job status notifications
@@ -32,6 +34,7 @@ Once these elements are available, using the plug-in is quite easy. Notice that 
 
 ### Authentication Keys
 To connect to your AWS environment, the plug-in (actually, the underlying AWS SDK) needs the Key ID and Secret Key provided by AWS. These keys must be available server side and can be installed:
+
 * In the `nuxeo.conf` file using the following parameters: `aws.transcoder.key` and `aws.transcoder.secret`. For example:
 ```
 aws.transcoder.key=1234567890ABCDEFGHIJ
@@ -41,6 +44,7 @@ aws.transcoder.secret=AbCdEFgh1234567890iJkLmNoPqR+sTuVwXYZ012
 
 ### Transcoding Videos
 To transcode videos, you must add XML contributions to your project. You must contribute:
+
 * One or more `converter`, where you specify the misc. parameters (s3 buckets, pipeline id, ...)
 * One or more `videoConversion`
   * A `videoConversion` has a unique name and references a `converter`
@@ -51,6 +55,7 @@ To transcode videos, you must add XML contributions to your project. You must co
 
 #### The `converter` contribution(s)
 It must have a unique `name` and declare the `parameters` used by the plug-in. For example:
+
 ```
 <extension target="org.nuxeo.ecm.core.convert.service.ConversionServiceImpl"
            point="converter">
@@ -76,6 +81,7 @@ It must have a unique `name` and declare the `parameters` used by the plug-in. F
 ```
 
 Some important details:
+
 * You _must_ use the `class="org.nuxeo.aws.elastictranscoder.connverters.AWSElasticTranscoderConverter"` attribute
 * `pipelineId` is the ID of the pipeline, not its name
 * The same goes for the `presetID`. In this example, we are using the “Generic 490p 4:3” preset, whose ID is `1351620000001-000030`
@@ -85,6 +91,7 @@ Some important details:
 
 #### The `videoConversion` contribution(s)
 It must have a unique `name` and a reference to an existing `converter`. For example, here is a contribution referencing the previous `converter`:
+
 ```
 <extension target="org.nuxeo.ecm.platform.video.service.VideoService"
     point="videoConversions">
@@ -94,6 +101,7 @@ It must have a unique `name` and a reference to an existing `converter`. For exa
 ```
 #### The `automaticVideoConversion` contribution(s)
 It must references the `name` of a `videoConversion`. For example:
+
 ```
 <extension target="org.nuxeo.ecm.platform.video.service.VideoService"
     point="automaticVideoConversions">
@@ -105,6 +113,7 @@ It must references the `name` of a `videoConversion`. For example:
 
 #### All Together
 In the following example, we declare 3 converters, with one of them being automatic. This XML could be used as is in your Studio project.
+
 ```
 <!-- Declare some videoConversion -->
 <extension target="org.nuxeo.ecm.platform.video.service.VideoService"
@@ -149,6 +158,7 @@ In the following example, we declare 3 converters, with one of them being automa
 
 ### Dependencies
 The plug-ins depends on the AWS SDK version 1.9.9, which itself depends on version 2.2 (min.) of `joda-time` and version 2.3.2 (min.) of `fasterxml-jackson`. As of today-right-now (2014-12-10), nuxeo uses lower versions, and the process of upgrading these dependencies inside nuxeo has started. Which means that, in order for the plug-in to work properly you can either:
+
 * Wait for version 7.1 to be release (January 2014)
 * Or manually replace the corresponding .jar files in the `lib` folder of your `nxserver` folder (`x.y.z` is the version you install):
   * `jackson-annotations-x.y.z`
@@ -171,6 +181,7 @@ You can use the Marketplace package located in the "Releases" tab of this GitHup
 #### Build
 
 Assuming `maven` version 3.2 minimum is installed, you can just
+
 ```
 cd /path/to/nuxeo-aws-elastictranscoder
 mvn clean install -DskipTests=true
