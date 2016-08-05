@@ -19,8 +19,6 @@ package org.nuxeo.aws.elastictranscoder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -30,15 +28,11 @@ import org.nuxeo.aws.elastictranscoder.notification.JobStatusNotification.JobSta
 import org.nuxeo.aws.elastictranscoder.notification.JobStatusNotificationHandler;
 import org.nuxeo.aws.elastictranscoder.notification.SqsQueueNotificationWorker;
 import org.nuxeo.ecm.core.api.Blob;
-import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
-import org.nuxeo.ecm.platform.picture.api.BlobHelper;
-import org.nuxeo.runtime.api.Framework;
-
+import org.nuxeo.ecm.core.api.Blobs;
 import com.amazonaws.services.elastictranscoder.model.CreateJobOutput;
 import com.amazonaws.services.elastictranscoder.model.CreateJobRequest;
 import com.amazonaws.services.elastictranscoder.model.CreateJobResult;
 import com.amazonaws.services.elastictranscoder.model.JobInput;
-import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.io.Files;
 
 /**
@@ -74,7 +68,7 @@ import com.google.common.io.Files;
  * <li>A pipeline already created, referencing the bucket(s) and the the
  * notification</li>
  * </ul>
- * 
+ *
  * <p>
  * Important information:
  * <ul>
@@ -97,7 +91,7 @@ import com.google.common.io.Files;
  * guarantee that a particular machine will receive a particular notification.
  * </i></li>
  * </ul>
- * 
+ *
  * @since 7.1
  */
 public class AWSElasticTranscoder {
@@ -106,9 +100,11 @@ public class AWSElasticTranscoder {
 
     protected Blob blob;
 
+    protected Blob tempBlob;
+
     protected File fileOfBlob;
 
-    protected FileBlob transcodedBlob;
+    protected Blob transcodedBlob;
 
     protected String presetId;
 
@@ -133,7 +129,7 @@ public class AWSElasticTranscoder {
     protected String inputKey;
 
     protected String outputKey;
-    
+
     protected String outputFileSuffix;
 
     protected GenericAWSClient genericAwsClient;
@@ -176,7 +172,7 @@ public class AWSElasticTranscoder {
 
     /**
      * Constructor is strict and throws an error if a parameter looks invalid
-     * 
+     *
      * @param inBlob
      * @param inPresetId
      * @param inInputBucket
@@ -192,14 +188,20 @@ public class AWSElasticTranscoder {
         s3Handler = new AWSS3Handler(genericAwsClient.getS3Client());
 
         blob = inBlob;
-        fileOfBlob = BlobHelper.getFileFromBlob(blob);
+        fileOfBlob = blob.getFile();
+        // If the blob is a stream => we want a File
         if (fileOfBlob == null) {
             // Create a temp file
-            fileOfBlob = File.createTempFile("NxAWSET-",
-                    Files.getFileExtension(blob.getFilename()));
+            if(tempBlob != null) {
+                File f = tempBlob.getFile();
+                if(f != null) {
+                    f.delete();
+                }
+                tempBlob = null;
+            }
+            tempBlob = Blobs.createBlobWithExtension("." + Files.getFileExtension(blob.getFilename()));
+            fileOfBlob = tempBlob.getFile();
             blob.transferTo(fileOfBlob);
-            fileOfBlob.deleteOnExit();
-            Framework.trackFile(fileOfBlob, this);
         }
 
         if (StringUtils.isBlank(inPresetId)) {
@@ -223,7 +225,8 @@ public class AWSElasticTranscoder {
         outputS3Bucket = inOutputBucket;
         pipelineId = inPipelineId;
         sqsQueueURL = inSQSQueueURL;
-        outputFileSuffix = StringUtils.isBlank(inOutputFileSuffix) ? "" : inOutputFileSuffix;
+        outputFileSuffix = StringUtils.isBlank(inOutputFileSuffix) ? ""
+                : inOutputFileSuffix;
 
         uniqueFilePrefix = java.util.UUID.randomUUID().toString().replace("-",
                 "")
@@ -277,7 +280,7 @@ public class AWSElasticTranscoder {
         return !step.isRunning();
     }
 
-    public FileBlob getTranscodedBlob() {
+    public Blob getTranscodedBlob() {
 
         return transcodedBlob;
     }
@@ -299,7 +302,7 @@ public class AWSElasticTranscoder {
      * Here we are "ready" (fun to say that with such an empty method) to setup
      * the key (the file name + full path prefix) in the S3 bucket, so we could
      * put it in a folder/subfolder/etc.
-     * 
+     *
      * Assume we have a valid blob in entry, default implementation: Just the
      * filename
      */
@@ -310,10 +313,10 @@ public class AWSElasticTranscoder {
 
     /*
      * See getInputKeyName() about the destination file.
-     * 
+     *
      * But also, here we should change the name and setup the extension
      * according to the transcoding for example
-     * 
+     *
      * Assume we have a valid blob in entry, default implementation: Just the
      * filename
      */
@@ -408,7 +411,7 @@ public class AWSElasticTranscoder {
      * Waits for the specified job to complete by adding a handler to the SQS
      * notification worker that is polling for status updates. This method will
      * block until the specified job completes.
-     * 
+     *
      * @param sqsQueueNotificationWorker
      * @throws InterruptedException
      */
@@ -435,7 +438,7 @@ public class AWSElasticTranscoder {
                             log.error(jobStatusNotification);
                         }
                         synchronized (this) {
-                            this.notifyAll();
+                            notifyAll();
                         }
                     }
                 }

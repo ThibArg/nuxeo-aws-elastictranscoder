@@ -17,7 +17,7 @@
 package org.nuxeo.aws.elastictranscoder;
 
 import org.apache.commons.lang.StringUtils;
-import org.nuxeo.ecm.core.api.ClientException;
+import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.runtime.api.Framework;
 
 import com.amazonaws.AmazonClientException;
@@ -79,7 +79,7 @@ public class GenericAWSClient {
         buildCredentiaProvider();
 
         if (awsCredentialsProvider == null) {
-            throw new ClientException(
+            throw new NuxeoException(
                     "AWS Access Key ID/Secret Access Key are missing or invalid. Are they correctly set-up in nuxeo.conf or as System variables?");
 
         }
@@ -154,7 +154,7 @@ public class GenericAWSClient {
      * Utility method returning formatted details about the error. It the error
      * is not AmazonServiceException or AmazonClientException, the method just
      * returns <code>e.getMessage()</code>
-     * 
+     *
      * @param e, an AmazonServiceException or AmazonClientException
      * @return
      *

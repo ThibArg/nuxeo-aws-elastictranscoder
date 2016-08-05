@@ -169,27 +169,28 @@ The plug-ins depends on the AWS SDK version 1.9.9, which itself depends on versi
 (think about removing the older one to avoid conflicts)
 
 ### WARNING
-This plug-in, even if it works very well, will not scale at large, it will require some adaptation if you need to transcode a lot of videos in a concurrent way.
+This plug-in, even if it works very well :-), **will not scale at large**, it will require some adaptation if you need to transcode a lot of videos in an effective concurrent way.
 
 
-### Install-Build
+### Install, Build, Test
 
 #### Install
 
-You can use the Marketplace package located in the "Releases" tab of this GitHup repository. It is a regular package, you ca install it either from the UI (Admin Center > Update Center > Local packages) or from the command line if you prefer (`/nuxeoctl mp-install /path/to/nuxeo-aws-elastictranscoder-mp-7.1-SNAPSHOT.zip`).
+You can use the Marketplace package located in the "Releases" tab of this GitHup repository. It is a regular package, you ca install it either from the UI (Admin Center > Update Center > Local packages) or from the command line if you prefer (`/nuxeoctl mp-install /path/to/nuxeo-aws-elastictranscoder-mp-{version}-SNAPSHOT.zip`).
 
 #### Build
 
-Assuming `maven` version 3.2 minimum is installed, you can just
+Assuming `maven` version 3.3 minimum is installed, you can just
 
 ```
 cd /path/to/nuxeo-aws-elastictranscoder
-mvn clean install -DskipTests=true
+mvn clean install
 ```
 
 The Marketplace Package is now in `/path/to/nuxeo-aws-elastictranscoder/nuxeo-aws-elastictranscoder-mp/target/nuxeo-aws-elastictranscoder-mp.x.y.z-SNAPSHOT.zip`
 
-If you want to run the tests, you need to setup the test environement so JUnit can find the AWS keys: Put then in a text file at src/test/resources/aws-test.conf (this file is ignored by git)
+#### Test
+If you want to run the tests, you need to setup the test environement so JUnit can find the AWS keys and other infos: Put then in a text file at src/test/resources/aws-test.conf (this file is ignored by git). See the test source code for the keys to setup there.
 
 ### About Nuxeo
 

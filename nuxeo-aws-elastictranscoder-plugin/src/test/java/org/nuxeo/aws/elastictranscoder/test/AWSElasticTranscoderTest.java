@@ -1,26 +1,38 @@
-/**
- * 
+/*
+ * (C) Copyright 2016 Nuxeo SA (http://nuxeo.com/) and others.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Contributors:
+ *     Thibaud Arguillere
  */
-
 package org.nuxeo.aws.elastictranscoder.test;
 
 import static org.junit.Assert.*;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoder;
-import org.nuxeo.aws.elastictranscoder.AWSElasticTranscoderConstants;
 import org.nuxeo.common.utils.FileUtils;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.CoreSession;
@@ -29,11 +41,13 @@ import org.nuxeo.ecm.core.api.IdRef;
 import org.nuxeo.ecm.core.api.blobholder.BlobHolder;
 import org.nuxeo.ecm.core.api.blobholder.SimpleBlobHolder;
 import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
-import org.nuxeo.ecm.core.api.repository.RepositoryManager;
 import org.nuxeo.ecm.core.convert.api.ConversionService;
+import org.nuxeo.ecm.core.convert.extension.ConverterDescriptor;
+import org.nuxeo.ecm.core.convert.service.ConversionServiceImpl;
 import org.nuxeo.ecm.core.event.EventService;
-import org.nuxeo.ecm.core.test.CoreFeature;
 import org.nuxeo.ecm.platform.test.PlatformFeature;
+import org.nuxeo.ecm.platform.video.VideoHelper;
+import org.nuxeo.ecm.platform.video.VideoInfo;
 import org.nuxeo.ecm.platform.video.service.VideoConversion;
 import org.nuxeo.ecm.platform.video.service.VideoService;
 import org.nuxeo.runtime.api.Framework;
@@ -46,35 +60,38 @@ import org.nuxeo.runtime.transaction.TransactionHelper;
 import com.google.inject.Inject;
 
 /*
- * The container type for the output file. Valid values include fmp4, mp3, mp4, ogg, ts, and webm. The following restrictions apply:
+ * Check the README and SimpleFeatureCustom to setup your access to AWS for the test.
+ * <p>
+ * Basically: Have a aws-test.conf fil in test/resources and fill it with the corrcet keys/values
  */
 @RunWith(FeaturesRunner.class)
-@Features({ PlatformFeature.class, CoreFeature.class })
+@Features({ PlatformFeature.class, SimpleFeatureCustom.class })
 @Deploy({ "nuxeo-aws-elastictranscoder", "org.nuxeo.ecm.platform.video.core",
         "org.nuxeo.ecm.platform.video.convert",
         "org.nuxeo.ecm.platform.picture.core",
         "org.nuxeo.ecm.platform.picture.convert",
         "org.nuxeo.ecm.platform.picture.api",
         "org.nuxeo.ecm.platform.commandline.executor" })
-@LocalDeploy({ "nuxeo-aws-elastictranscoder-test:video-and-converter-test-contrib.xml" })
+@LocalDeploy({
+        "nuxeo-aws-elastictranscoder-test:video-and-converter-test-contrib.xml",
+        "nuxeo-aws-elastictranscoder-test:disabled-listeners-contrib.xml" })
 public class AWSElasticTranscoderTest {
 
     protected static final String VIDEO_MP4 = "files/a.mp4";
 
     protected static final String TEST_CONF = "aws-test.conf";
 
-    // These buckets are created with the AWS nuxeo presales credentials
-    // The keys are set in the nuxeo server configuration file.
+    public static final String AUTOMATIC_CONVERSION_NAME = "Elastic Transcoder: Generic 480p 4:3";
 
-    protected static String INTPUTBUCKET = "nuxeo-transcoding-input";
+    protected static String inputBucket;
 
-    protected static String OUTPUTBUCKET = "nuxeo-transcoding-output";
+    protected static String outputBucket;
 
-    protected static String PIPELINE_NAME = "nuxeo-transcoding-pipeline";
+    protected static String pipelineName;
 
-    protected static String PIPELINE_ID = "1417822775841-udlnwk";
+    protected static String pipelineId;
 
-    protected static String SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/311032021612/nuxeo-transcoding-queue";
+    protected static String sqsQueueUrl;
 
     // Presets available in US Region East:
     // http://docs.aws.amazon.com/elastictranscoder/latest/developerguide/system-presets.html
@@ -102,22 +119,13 @@ public class AWSElasticTranscoderTest {
 
     protected DocumentModel videoDoc;
 
+    protected static boolean hasSetupInfo = false;
+
     @Inject
     CoreSession coreSession;
 
     @Inject
     EventService eventService;
-
-    protected void doLog(String what) {
-        System.out.println(what);
-    }
-
-    // Not sure it's the best way to get the current method name, but at least
-    // it works
-    protected String getCurrentMethodName(RuntimeException e) {
-        StackTraceElement currentElement = e.getStackTrace()[0];
-        return currentElement.getMethodName();
-    }
 
     /*
      * Create and save the documents at first level of parentOfTestDocs
@@ -137,27 +145,42 @@ public class AWSElasticTranscoderTest {
         doc = coreSession.createDocument(doc);
         doc = coreSession.saveDocument(doc);
         coreSession.save();
-        
 
         return doc;
+    }
+
+    protected boolean atLeastOneBlank(String... list) {
+
+        for (String str : list) {
+            if (StringUtils.isBlank(str)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Before
     public void setup() throws Exception {
 
-        File file = FileUtils.getResourceFileFromContext(TEST_CONF);
-        FileInputStream fileInput = new FileInputStream(file);
-        Properties props = new Properties();
-        props.load(fileInput);
-        fileInput.close();
+        hasSetupInfo = false;
 
-        Properties systemProps = System.getProperties();
-        systemProps.setProperty(
-                AWSElasticTranscoderConstants.CONF_AWS_KEY_ACCESS,
-                props.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_ACCESS));
-        systemProps.setProperty(
-                AWSElasticTranscoderConstants.CONF_AWS_KEY_SECRET,
-                props.getProperty(AWSElasticTranscoderConstants.CONF_AWS_KEY_SECRET));
+        if (SimpleFeatureCustom.hasLocalTestConfiguration()) {
+            // Sanity check
+            String awsKey = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_KEY);
+            String awsSecret = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_SECRET);
+            inputBucket = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_INPUT_BUCKET);
+            outputBucket = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_OUTPUT_BUCKET);
+            pipelineName = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_PIPE_LINE);
+            pipelineId = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_PIPELINE_ID);
+            sqsQueueUrl = SimpleFeatureCustom.getLocalProperty(SimpleFeatureCustom.TEST_KEY_AWS_SQS_QUEUE_URL);
+
+            boolean hasABlank = atLeastOneBlank(awsKey, awsSecret, inputBucket,
+                    outputBucket, pipelineName, pipelineId, sqsQueueUrl);
+
+            assertFalse(hasABlank);
+            hasSetupInfo = true;
+        }
 
         parentOfTestDocs = coreSession.createDocumentModel("/", "test-docs",
                 "Folder");
@@ -173,33 +196,49 @@ public class AWSElasticTranscoderTest {
         coreSession.save();
     }
 
-    @Ignore
+    // @Ignore
     @Test
     public void testTranscodeVideoToIPhone5() throws Exception {
 
-        doLog(getCurrentMethodName(new RuntimeException()) + "...");
+        Assume.assumeTrue(
+                "Ignoring test: Missing configuration parameters. Check your aws-test.conf file",
+                hasSetupInfo);
 
         File f = FileUtils.getResourceFileFromContext(VIDEO_MP4);
         FileBlob fb = new FileBlob(f);
 
+        System.out.println("Transcoding on AWS started...");
+
         AWSElasticTranscoder transcoder = new AWSElasticTranscoder(fb,
-                PRESET_iPHONE_5, INTPUTBUCKET, OUTPUTBUCKET, PIPELINE_ID,
-                SQS_QUEUE_URL, PRESET_iPHONE_5_OUTPUT_SUFFIX);
+                PRESET_iPHONE_5, inputBucket, outputBucket, pipelineId,
+                sqsQueueUrl, PRESET_iPHONE_5_OUTPUT_SUFFIX);
 
         transcoder.transcode();
 
-        FileBlob result = transcoder.getTranscodedBlob();
-        assertNotNull(result);
+        System.out.println("...Transcoding on AWS Done");
 
-        // Check it is a valid video
-        // . . .
+        Blob result = transcoder.getTranscodedBlob();
+        assertNotNull(result);
+        assertTrue(result.getFilename().endsWith(PRESET_iPHONE_5_OUTPUT_SUFFIX));
+
+        // Check we have a valid video
+        VideoInfo vi = null;
+        try {
+            vi = VideoHelper.getVideoInfo(result);
+        } catch (Exception e) {
+            vi = null;
+        }
+        assertNotNull(vi);
+
     }
 
-    @Ignore
+    // @Ignore
     @Test
     public void testVideoConversionContribution() throws Exception {
 
-        doLog(getCurrentMethodName(new RuntimeException()) + "...");
+        Assume.assumeTrue(
+                "Missing configuration parameters. Check your aws-test.conf file",
+                hasSetupInfo);
 
         boolean hasETWebConverter = false;
         boolean hasETIPhoneConverter = false;
@@ -246,26 +285,55 @@ public class AWSElasticTranscoderTest {
 
         ConversionService conversionService = Framework.getService(ConversionService.class);
         BlobHolder source = new SimpleBlobHolder(fb);
+
+        System.out.println("Transcoding on AWS started...");
+
         BlobHolder result = conversionService.convert(CONVERTER_ET_WEB, source,
                 null);
+
+        System.out.println("...Transcoding on AWS Done");
+
+        // Get info from the converter, to check we have a coherent result
+        ConverterDescriptor desc = ConversionServiceImpl.getConverterDescriptor(CONVERTER_ET_WEB);
+        String expectedMimeType = desc.getDestinationMimeType();
+        // Specific to our converter
+        String expectedFileSuffix = desc.getParameters().get("outputFileSuffix");
+        // desc.get
+
         Blob convertedBlob = result.getBlob();
         assertNotNull(convertedBlob);
+        assertTrue(convertedBlob.getLength() > 0);
+        assertTrue(convertedBlob.getFilename().endsWith(expectedFileSuffix));
+        assertEquals(expectedMimeType.toLowerCase(),
+                convertedBlob.getMimeType().toLowerCase());
 
-        doLog(getCurrentMethodName(new RuntimeException()) + "...done");
+        // Check we have a valid video
+        VideoInfo vi = null;
+        try {
+            vi = VideoHelper.getVideoInfo(convertedBlob);
+        } catch (Exception e) {
+            vi = null;
+        }
+        assertNotNull(vi);
 
     }
 
     /*
-     * The video-and-converter-test-contrib.xml declares an automatic conversion
-     * to
+     * The video-and-converter-test-contrib.xml declares _one_ automatic
+     * conversion with name "Elastic Transcoder: Generic 480p 4:3"
      */
     // @Ignore
     @Test
     public void testVideoConversionOnDocument() throws Exception {
 
-        doLog(getCurrentMethodName(new RuntimeException()) + "...");
+        Assume.assumeTrue(
+                "Missing configuration parameters. Check your aws-test.conf file",
+                hasSetupInfo);
 
         File f = FileUtils.getResourceFileFromContext(VIDEO_MP4);
+
+        System.out.println("Transcoding on AWS started...");
+
         DocumentModel videoDoc = createAndSaveDoc("Video", f.getName(), f);
         assertNotNull(videoDoc);
         Blob b = (Blob) videoDoc.getPropertyValue("file:content");
@@ -275,22 +343,24 @@ public class AWSElasticTranscoderTest {
         TransactionHelper.startTransaction();
 
         eventService.waitForAsyncCompletion();
-        
-        CoreSession session = Framework.getService(RepositoryManager.class).getDefaultRepository().open();
-        
+
+        System.out.println("...Transcoding on AWS Done");
+
         // Check we have our video
-        videoDoc = session.getDocument(new IdRef(videoDoc.getId()));
+        videoDoc = coreSession.getDocument(new IdRef(videoDoc.getId()));
         videoDoc.refresh();
         List<Map<String, Serializable>> transcodedVideos = (List<Map<String, Serializable>>) videoDoc.getPropertyValue("vid:transcodedVideos");
-        if(transcodedVideos == null) {
-            System.out.println("no transcodedVideos");
-        } else {
-            System.out.println("transcodedVideos: " + transcodedVideos.size());
-        }
-        
+        assertNotNull(transcodedVideos);
+        assertTrue(transcodedVideos.size() > 0);
+
+        boolean gotMine = false;
         for (Map<String, Serializable> prop : transcodedVideos) {
-            System.out.println(prop.get("name"));
+            if (prop.get("name").equals(AUTOMATIC_CONVERSION_NAME)) {
+                gotMine = true;
+                break;
+            }
         }
+        assertTrue(gotMine);
 
     }
 

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<component name="org.nuxeo.aws.elastictranscoder.test.listeners">
+
+	<require>org.nuxeo.platform.video.core.listeners</require>
+
+	<extension target="org.nuxeo.ecm.core.event.EventServiceComponent"
+		point="listener">
+		<listener enabled="false" name="videoStoryboardListener"></listener>
+	</extension>
+
+</component>

@@ -5,28 +5,40 @@
   <parent>
     <groupId>org.nuxeo.aws.elastictranscoder</groupId>
     <artifactId>nuxeo-aws-elastictranscoder-parent</artifactId>
-    <version>7.1-SNAPSHOT</version>
+    <version>8.3-SNAPSHOT</version>
   </parent>
   <artifactId>nuxeo-aws-elastictranscoder-mp</artifactId>
   <packaging>zip</packaging>
-  <name>Market Place Package for Nuxeo EJ Gallo</name>
+  <name>Market Place Package for Nuxeo AWS Elastic Transcoder</name>
   <description/>
   <dependencies>
+    <!-- Base distribution(s) for the MP -->
+    <dependency>
+      <groupId>org.nuxeo.ecm.distribution</groupId>
+      <artifactId>nuxeo-distribution-cap</artifactId>
+      <type>pom</type>
+    </dependency>
+    <dependency>
+      <groupId>org.nuxeo.ecm.distribution</groupId>
+      <artifactId>nuxeo-distribution-cap</artifactId>
+      <type>zip</type>
+      <scope>provided</scope>
+    </dependency>
     <dependency>
       <groupId>org.nuxeo.aws.elastictranscoder</groupId>
       <artifactId>nuxeo-aws-elastictranscoder-plugin</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
   <build>
     <plugins>
       <plugin>
         <groupId>org.nuxeo.build</groupId>
-        <!-- When building for 5.8 -->
-        <!-- <artifactId>nuxeo-distribution-tools</artifactId> -->
-        <!-- When building for 5.9.2+ -->
         <artifactId>ant-assembly-maven-plugin</artifactId>
         <configuration>
-          <buildFile>${basedir}/src/main/assemble/assembly.xml</buildFile>
+          <buildFiles>
+            <buildFile>${basedir}/src/main/assemble/assembly.xml</buildFile>
+          </buildFiles>
         </configuration>
       </plugin>
     </plugins>

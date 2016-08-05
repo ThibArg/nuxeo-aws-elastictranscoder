@@ -19,6 +19,9 @@ package org.nuxeo.aws.elastictranscoder;
 import java.io.File;
 import java.io.IOException;
 
+import org.apache.commons.lang.StringUtils;
+import org.nuxeo.ecm.core.api.Blob;
+import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.impl.blob.FileBlob;
 import org.nuxeo.runtime.api.Framework;
 
@@ -35,7 +38,7 @@ import com.google.common.io.Files;
  * <p>
  * <i>IMPORTANT</i>: Uses the <code>GenericAWSClient</code>, so the S3 client is
  * shared
- * 
+ *
  * @since 7.1
  */
 public class AWSS3Handler {
@@ -49,12 +52,12 @@ public class AWSS3Handler {
         amazonS3 = inS3;
         bucket = inBucket;
     }
-    
+
     public AWSS3Handler(AmazonS3 inS3) {
-        
+
         amazonS3 = inS3;
     }
-    
+
     public void setBucket(String inBucket) {
         bucket = inBucket;
     }
@@ -74,14 +77,17 @@ public class AWSS3Handler {
         }
     }
 
-    public FileBlob downloadFile(String inKey, String inFileName)
+    public Blob downloadFile(String inKey, String inFileName)
             throws IOException, RuntimeException {
 
         ObjectMetadata metadata = null;
-        FileBlob result = null;
+        // Create a temp. file
+        String ext = Files.getFileExtension(inFileName);
+        ext = StringUtils.isBlank(ext) ? "tmp" : ext;
+        Blob result = Blobs.createBlobWithExtension("." + ext);
 
         File tmp = File.createTempFile("NxAWSET-",
-                Files.getFileExtension(inFileName));
+                "." + Files.getFileExtension(inFileName));
         tmp.deleteOnExit();
         Framework.trackFile(tmp, this);
 
