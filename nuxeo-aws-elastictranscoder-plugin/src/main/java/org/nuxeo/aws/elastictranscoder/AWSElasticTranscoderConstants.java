@@ -40,6 +40,8 @@ public class AWSElasticTranscoderConstants {
 
     public static final String AWS_ENV_VAR_SECRET_KEY = "AWS_SECRET_ACCESS_KEY";
 
+    public static final String AWS_ENV_VAR_REGION = "AWS_REGION";
+
     // ================================================== OTHER KEYS
     public static final String CONF_KEY_INPUT_BUCKET = "aws.transcoder.default.bucket.input";
 
