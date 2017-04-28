@@ -29,6 +29,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 
 /**
  * This class provides an umbrella to get a AWS tool client (S3, SQL, ...) while
@@ -108,6 +110,10 @@ public class GenericAWSClient {
         if (elasticTranscoder == null) {
             elasticTranscoder = new AmazonElasticTranscoderClient(
                     awsCredentialsProvider);
+            if (!StringUtils.isBlank(System.getenv(AWSElasticTranscoderConstants.AWS_REGION))) {
+              Region region = Region.getRegion(Regions.fromName(System.getenv(AWSElasticTranscoderConstants.AWS_REGION)));
+              elasticTranscoder.setRegion(region);
+          }
         }
 
         return elasticTranscoder;
